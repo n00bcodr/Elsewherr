@@ -9,6 +9,10 @@ sonarr:
   enabled: true
   url: http://localhost:8989
   api_key: xxx
+gotify:
+  enabled: false
+  url: http://localhost
+  token: xxx
 providers:
   - Netflix
   - Disney Plus
