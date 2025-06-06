@@ -1,7 +1,7 @@
 **DISCLAIMER: This was thrown together by me late at night with limited python skills. Use it at your own risk. I provide zero warranty. If this nerfs your Radarr library I am really sorry, but theres nothing I can do.**
 
 # Elsewherr
- 
+
 **What is it?**
 
 Elsewherr will see if your movies from Radarr are available on a streaming service, and add a tag against the movie if it is.
@@ -12,7 +12,7 @@ The script will check The Movie Database (https://www.themoviedb.org/) via their
 
 **Why?**
 
-Why not? What you do with this information is up to you. You might want to remove movies that are on Netflix to save space, or just like to know theres an option availble other than your local library. 
+Why not? What you do with this information is up to you. You might want to remove movies that are on Netflix to save space, or just like to know theres an option availble other than your local library.
 
 **How do I use it?**
 - Download, clone, or otherwise obtain this repo and put it somewhere
@@ -38,11 +38,11 @@ You might want to setup a scheduled task or something to run this regularly to k
 |requiredProviders|List of the providers you would like to search for. Providers must be entered *exactly* as they appear in the Providers list from TMDb to work. |
 |tagPrefix|Prefix that will be included in the tags added to Radarr and/or Sonarr|
 
-A list of Regions and Providers is available in `providers.txt`, but you can also run the `providers.py` script to grab an up to date list. 
+A list of Regions and Providers is available in `providers.txt`, but you can also run the `providers.py` script to grab an up to date list.
 
 **Logging/Debugging**
 
-By default Elsewherr will log all INFO logs out to `elsewhere.log` or `sonarr.log`. If you incluide the '-d' or '--debug' argument when running the script (i.e. `python elsewherr.py -d` or `python elsewherr.py --debug`) it will up the logging to DEBUG and output much more information to the logs.
+By default Elsewherr will log all INFO logs out to `elsewhere.log` or `sonarr.log`. If you incluide the '-v' or '--verbose' argument when running the script (i.e. `python elsewherr.py -v` or `python elsewherr.py --verbose`) it will up the logging to DEBUG and output much more information to the logs.
 
 The log file is overwritten each time the script is run.
 

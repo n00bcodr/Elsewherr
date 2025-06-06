@@ -18,10 +18,10 @@ def setup(args):
     global config
     global gotify
     global logger
-    
+
     dir = os.path.dirname(os.path.abspath(__file__))
     logging.basicConfig(
-        level=logging.INFO, 
+        level=logging.INFO,
         format='%(asctime)s :: %(levelname)s :: %(message)s',
         handlers=list(filter(None, [
             logging.FileHandler(filename=os.path.join(dir, 'logs', 'elsewherr.log')) if args.log_to_file else None,
@@ -41,6 +41,7 @@ def setup(args):
     tmdb = TMDb()
     tmdb.api_key = config['tmdb']['api_key']
 
+    gotify = None
     if config.get('gotify') and config['gotify'].get('enabled'):
         gotify = Gotify(base_url=config['gotify']['url'], app_token=config['gotify']['token'])
 
@@ -51,7 +52,7 @@ def process_radarr():
     radarr = RadarrAPI(host_url=config['radarr']['url'], api_key=config['radarr']['api_key'])
     movies = radarr.get_movie()
 
-    for provider in config['providers']:      
+    for provider in config['providers']:
         response = radarr.create_tag(get_tag_label_for_provider(provider))
         logger.debug('Response: %s' % response)
 
@@ -66,30 +67,38 @@ def process_radarr():
             logger.debug(f"Existing Tags: {', '.join(map(lambda x: tags_id_to_label.get(x), movie['tags'])) if len(movie['tags']) > 0 else 'None'}")
             tags_list = list(filter(lambda x: not tags_id_to_label.get(x).startswith(config['prefix'].lower()), movie['tags']))
 
-            providers = Movie().watch_providers(movie['tmdbId'])['results'].get(config['tmdb']['region'], {}).get('flatrate', [])
-            for provider in providers:
-                provider_name = provider['provider_name']
+            region_code = config['tmdb']['region']
+            watch_providers_obj = Movie().watch_providers(movie['tmdbId'])
 
-                if provider_name in config['providers']:
+            watch_providers_dict = watch_providers_obj._json
+
+            providers = watch_providers_dict.get('results', {}).get(region_code, {}).get('flatrate', [])
+
+            if not providers:
+                logger.debug(f"No flatrate providers found for {movie['title']} in region '{region_code}'.")
+
+            for provider_dict in providers:
+                provider_name = provider_dict.get('provider_name')
+                if provider_name and provider_name in config['providers']:
                     logger.debug('Adding provider: %s' % provider_name)
                     tags_list.append(tags_label_to_id.get(get_tag_label_for_provider(provider_name)))
                 else:
                     logger.debug('Skipping provider: %s' % provider_name)
 
             logger.debug(f"Resultant Tags: {', '.join(map(lambda x: tags_id_to_label.get(x), tags_list)) if len(tags_list) > 0 else 'None'}")
-            
+
             if set(movie['tags']) != set(tags_list):
                 removed_tags = list(map(lambda x: tags_id_to_label.get(x), set(movie['tags']) - set(tags_list)))
                 added_tags = list(map(lambda x: tags_id_to_label.get(x), set(tags_list) - set(movie['tags'])))
-                
+
                 message = f"{'Removed tags: ' + ','.join(removed_tags) + ' ' if len(removed_tags) > 0 else ''}"
                 message += f"{'Added tags: ' + ','.join(added_tags) if len(added_tags) > 0 else ''}"
                 send_notification(f"{movie['title']}", message)
-            
+
                 movie['tags'] = tags_list
                 radarr.upd_movie(movie)
         except Exception as e:
-            logger.error(e)
+            logger.error(e, exc_info=True)
             logger.error('Failed to process movie %s' % movie['title'])
             continue
 
@@ -101,14 +110,14 @@ def process_sonarr():
     sonarr = SonarrAPI(host_url=config['sonarr']['url'], api_key=config['sonarr']['api_key'])
     all_series = sonarr.get_series()
 
-    for provider in config['providers']:      
+    for provider in config['providers']:
         response = sonarr.create_tag(get_tag_label_for_provider(provider))
         logger.debug('Response: %s' % response)
 
     all_tags = sonarr.get_tag()
     tags_id_to_label = dict((tag['id'], tag['label']) for tag in all_tags)
     tags_label_to_id = dict((tag['label'], tag['id']) for tag in all_tags)
-    
+
     for series in all_series:
         try:
             logger.debug('--------------------------------------------------')
@@ -117,15 +126,22 @@ def process_sonarr():
 
             result = Find().find_by_tvdb_id(str(series['tvdbId']))
             tmdb_id = result['tv_results'][0]['id']
-            logger.debug('Found TMDB ID: %s' % tmdb_id)
 
             tags_list = list(filter(lambda x: not tags_id_to_label.get(x).startswith(config['prefix'].lower()), series['tags']))
 
-            providers = TV().watch_providers(tmdb_id)['results'].get(config['tmdb']['region'], {}).get('flatrate', [])
-            for provider in providers:
-                provider_name = provider['provider_name']
+            region_code = config['tmdb']['region']
+            watch_providers_obj = TV().watch_providers(tmdb_id)
 
-                if provider_name in config['providers']:
+            watch_providers_dict = watch_providers_obj._json
+
+            providers = watch_providers_dict.get('results', {}).get(region_code, {}).get('flatrate', [])
+
+            if not providers:
+                logger.debug(f"No flatrate providers found for {series['title']} in region '{region_code}'.")
+
+            for provider_dict in providers:
+                provider_name = provider_dict.get('provider_name')
+                if provider_name and provider_name in config['providers']:
                     logger.debug('Adding provider: %s' % provider_name)
                     tags_list.append(tags_label_to_id.get(get_tag_label_for_provider(provider_name)))
                 else:
@@ -136,7 +152,7 @@ def process_sonarr():
             if set(series['tags']) != set(tags_list):
                 removed_tags = list(map(lambda x: tags_id_to_label.get(x), set(series['tags']) - set(tags_list)))
                 added_tags = list(map(lambda x: tags_id_to_label.get(x), set(tags_list) - set(series['tags'])))
-                
+
                 message = f"{'Removed tags: ' + ','.join(removed_tags) + ' ' if len(removed_tags) > 0 else ''}"
                 message += f"{'Added tags: ' + ','.join(added_tags) if len(added_tags) > 0 else ''}"
                 send_notification(f"{series['title']}", message)
@@ -145,7 +161,7 @@ def process_sonarr():
                 sonarr.upd_series(series)
 
         except Exception as e:
-            logger.error(e)
+            logger.error(e, exc_info=True)
             logger.error('Failed to process series %s' % series['title'])
             continue
 
