@@ -70,7 +70,7 @@ def process_radarr():
             region_code = config['tmdb']['region']
             watch_providers_obj = Movie().watch_providers(movie['tmdbId'])
 
-            watch_providers_dict = watch_providers_obj._json
+            watch_providers_dict = watch_providers_obj.__dict__
 
             providers = watch_providers_dict.get('results', {}).get(region_code, {}).get('flatrate', [])
 
@@ -132,7 +132,7 @@ def process_sonarr():
             region_code = config['tmdb']['region']
             watch_providers_obj = TV().watch_providers(tmdb_id)
 
-            watch_providers_dict = watch_providers_obj._json
+            watch_providers_dict = watch_providers_obj.__dict__
 
             providers = watch_providers_dict.get('results', {}).get(region_code, {}).get('flatrate', [])
 
