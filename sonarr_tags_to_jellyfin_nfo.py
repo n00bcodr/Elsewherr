@@ -39,7 +39,7 @@ def main():
         level=log_level,
         format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(log_file_path),
+            logging.FileHandler(log_file_path, mode='w'),
             logging.StreamHandler()
         ]
     )
