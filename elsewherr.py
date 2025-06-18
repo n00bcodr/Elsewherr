@@ -105,8 +105,8 @@ def process_radarr():
             except RequestException as e:
                 logger.warning(f"Network error for '{movie['title']}' (attempt {attempt + 1}/3): {e}")
                 if attempt < 2:
-                    logger.info("Retrying in 10 seconds...")
-                    time.sleep(10)
+                    logger.info("Retrying in 30 seconds...")
+                    time.sleep(30)
                 else:
                     logger.error(f"Failed to process '{movie['title']}' after 3 attempts. Skipping.")
 
@@ -180,8 +180,8 @@ def process_sonarr():
             except RequestException as e:
                 logger.warning(f"Network error for '{series['title']}' (attempt {attempt + 1}/3): {e}")
                 if attempt < 2:
-                    logger.info("Retrying in 10 seconds...")
-                    time.sleep(10)
+                    logger.info("Retrying in 30 seconds...")
+                    time.sleep(30)
                 else:
                     logger.error(f"Failed to process '{series['title']}' after 3 attempts. Skipping.")
 
