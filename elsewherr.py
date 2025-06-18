@@ -6,6 +6,8 @@ import re
 from pyarr import SonarrAPI, RadarrAPI
 from tmdbv3api import TMDb, Find, Movie, TV
 import yaml
+import time
+from requests.exceptions import RequestException
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -61,46 +63,58 @@ def process_radarr():
     tags_label_to_id = dict((tag['label'], tag['id']) for tag in all_tags)
 
     for movie in movies:
-        try:
-            logger.debug('--------------------------------------------------')
-            logger.debug('Movie: %s' % movie['title'])
-            logger.debug(f"Existing Tags: {', '.join(map(lambda x: tags_id_to_label.get(x), movie['tags'])) if len(movie['tags']) > 0 else 'None'}")
-            tags_list = list(filter(lambda x: not tags_id_to_label.get(x).startswith(config['prefix'].lower()), movie['tags']))
+        for attempt in range(3):
+            try:
+                logger.debug('--------------------------------------------------')
+                logger.debug('Movie: %s' % movie['title'])
+                logger.debug(f"Existing Tags: {', '.join(map(lambda x: tags_id_to_label.get(x), movie['tags'])) if len(movie['tags']) > 0 else 'None'}")
+                tags_list = list(filter(lambda x: not tags_id_to_label.get(x).startswith(config['prefix'].lower()), movie['tags']))
 
-            region_code = config['tmdb']['region']
-            watch_providers_obj = Movie().watch_providers(movie['tmdbId'])
+                region_code = config['tmdb']['region']
+                watch_providers_obj = Movie().watch_providers(movie['tmdbId'])
 
-            watch_providers_dict = watch_providers_obj.__dict__
+                watch_providers_dict = watch_providers_obj.__dict__
+                providers = watch_providers_dict.get('results', {}).get(region_code, {}).get('flatrate', [])
 
-            providers = watch_providers_dict.get('results', {}).get(region_code, {}).get('flatrate', [])
+                if not providers:
+                    logger.debug(f"No flatrate providers found for {movie['title']} in region '{region_code}'.")
 
-            if not providers:
-                logger.debug(f"No flatrate providers found for {movie['title']} in region '{region_code}'.")
+                for provider_dict in providers:
+                    provider_name = provider_dict.get('provider_name')
+                    if provider_name and provider_name in config['providers']:
+                        logger.debug('Adding provider: %s' % provider_name)
+                        tags_list.append(tags_label_to_id.get(get_tag_label_for_provider(provider_name)))
+                    else:
+                        logger.debug('Skipping provider: %s' % provider_name)
 
-            for provider_dict in providers:
-                provider_name = provider_dict.get('provider_name')
-                if provider_name and provider_name in config['providers']:
-                    logger.debug('Adding provider: %s' % provider_name)
-                    tags_list.append(tags_label_to_id.get(get_tag_label_for_provider(provider_name)))
+                logger.debug(f"Resultant Tags: {', '.join(map(lambda x: tags_id_to_label.get(x), tags_list)) if len(tags_list) > 0 else 'None'}")
+
+                if set(movie['tags']) != set(tags_list):
+                    removed_tags = list(map(lambda x: tags_id_to_label.get(x), set(movie['tags']) - set(tags_list)))
+                    added_tags = list(map(lambda x: tags_id_to_label.get(x), set(tags_list) - set(movie['tags'])))
+
+                    message = f"{'Removed tags: ' + ','.join(removed_tags) + ' ' if len(removed_tags) > 0 else ''}"
+                    message += f"{'Added tags: ' + ','.join(added_tags) if len(added_tags) > 0 else ''}"
+                    send_notification(f"{movie['title']}", message)
+
+                    movie['tags'] = tags_list
+                    radarr.upd_movie(movie)
+                break
+
+            # --- Catch the network error ---
+            except RequestException as e:
+                logger.warning(f"Network error for '{movie['title']}' (attempt {attempt + 1}/3): {e}")
+                if attempt < 2:
+                    logger.info("Retrying in 10 seconds...")
+                    time.sleep(10)
                 else:
-                    logger.debug('Skipping provider: %s' % provider_name)
+                    logger.error(f"Failed to process '{movie['title']}' after 3 attempts. Skipping.")
 
-            logger.debug(f"Resultant Tags: {', '.join(map(lambda x: tags_id_to_label.get(x), tags_list)) if len(tags_list) > 0 else 'None'}")
-
-            if set(movie['tags']) != set(tags_list):
-                removed_tags = list(map(lambda x: tags_id_to_label.get(x), set(movie['tags']) - set(tags_list)))
-                added_tags = list(map(lambda x: tags_id_to_label.get(x), set(tags_list) - set(movie['tags'])))
-
-                message = f"{'Removed tags: ' + ','.join(removed_tags) + ' ' if len(removed_tags) > 0 else ''}"
-                message += f"{'Added tags: ' + ','.join(added_tags) if len(added_tags) > 0 else ''}"
-                send_notification(f"{movie['title']}", message)
-
-                movie['tags'] = tags_list
-                radarr.upd_movie(movie)
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            logger.error('Failed to process movie %s' % movie['title'])
-            continue
+            # Catch any other unexpected errors and move on
+            except Exception as e:
+                logger.error(e, exc_info=True)
+                logger.error('Failed to process movie %s' % movie['title'])
+                break # Break loop on non-network errors
 
     logger.debug('--------------------------------------------------')
     logger.info('Processed %i movies.' % len(movies))
@@ -119,51 +133,63 @@ def process_sonarr():
     tags_label_to_id = dict((tag['label'], tag['id']) for tag in all_tags)
 
     for series in all_series:
-        try:
-            logger.debug('--------------------------------------------------')
-            logger.debug('Series: %s' % series['title'])
-            logger.debug(f"Existing Tags: {', '.join(map(lambda x: tags_id_to_label.get(x), series['tags'])) if len(series['tags']) > 0 else 'None'}")
+        for attempt in range(3):
+            try:
+                logger.debug('--------------------------------------------------')
+                logger.debug('Series: %s' % series['title'])
+                logger.debug(f"Existing Tags: {', '.join(map(lambda x: tags_id_to_label.get(x), series['tags'])) if len(series['tags']) > 0 else 'None'}")
 
-            result = Find().find_by_tvdb_id(str(series['tvdbId']))
-            tmdb_id = result['tv_results'][0]['id']
+                result = Find().find_by_tvdb_id(str(series['tvdbId']))
+                tmdb_id = result['tv_results'][0]['id']
 
-            tags_list = list(filter(lambda x: not tags_id_to_label.get(x).startswith(config['prefix'].lower()), series['tags']))
+                tags_list = list(filter(lambda x: not tags_id_to_label.get(x).startswith(config['prefix'].lower()), series['tags']))
 
-            region_code = config['tmdb']['region']
-            watch_providers_obj = TV().watch_providers(tmdb_id)
+                region_code = config['tmdb']['region']
+                watch_providers_obj = TV().watch_providers(tmdb_id)
 
-            watch_providers_dict = watch_providers_obj.__dict__
+                watch_providers_dict = watch_providers_obj.__dict__
+                providers = watch_providers_dict.get('results', {}).get(region_code, {}).get('flatrate', [])
 
-            providers = watch_providers_dict.get('results', {}).get(region_code, {}).get('flatrate', [])
+                if not providers:
+                    logger.debug(f"No flatrate providers found for {series['title']} in region '{region_code}'.")
 
-            if not providers:
-                logger.debug(f"No flatrate providers found for {series['title']} in region '{region_code}'.")
+                for provider_dict in providers:
+                    provider_name = provider_dict.get('provider_name')
+                    if provider_name and provider_name in config['providers']:
+                        logger.debug('Adding provider: %s' % provider_name)
+                        tags_list.append(tags_label_to_id.get(get_tag_label_for_provider(provider_name)))
+                    else:
+                        logger.debug('Skipping provider: %s' % provider_name)
 
-            for provider_dict in providers:
-                provider_name = provider_dict.get('provider_name')
-                if provider_name and provider_name in config['providers']:
-                    logger.debug('Adding provider: %s' % provider_name)
-                    tags_list.append(tags_label_to_id.get(get_tag_label_for_provider(provider_name)))
+                logger.debug(f"Resultant Tags: {', '.join(map(lambda x: tags_id_to_label.get(x), tags_list)) if len(tags_list) > 0 else 'None'}")
+
+                if set(series['tags']) != set(tags_list):
+                    removed_tags = list(map(lambda x: tags_id_to_label.get(x), set(series['tags']) - set(tags_list)))
+                    added_tags = list(map(lambda x: tags_id_to_label.get(x), set(tags_list) - set(series['tags'])))
+
+                    message = f"{'Removed tags: ' + ','.join(removed_tags) + ' ' if len(removed_tags) > 0 else ''}"
+                    message += f"{'Added tags: ' + ','.join(added_tags) if len(added_tags) > 0 else ''}"
+                    send_notification(f"{series['title']}", message)
+
+                    series['tags'] = tags_list
+                    sonarr.upd_series(series)
+
+                break
+
+            # --- Catch the network error ---
+            except RequestException as e:
+                logger.warning(f"Network error for '{series['title']}' (attempt {attempt + 1}/3): {e}")
+                if attempt < 2:
+                    logger.info("Retrying in 10 seconds...")
+                    time.sleep(10)
                 else:
-                    logger.debug('Skipping provider: %s' % provider_name)
+                    logger.error(f"Failed to process '{series['title']}' after 3 attempts. Skipping.")
 
-            logger.debug(f"Resultant Tags: {', '.join(map(lambda x: tags_id_to_label.get(x), tags_list)) if len(tags_list) > 0 else 'None'}")
+            except Exception as e:
+                logger.error(e, exc_info=True)
+                logger.error('Failed to process series %s' % series['title'])
+                break # Break loop on non-network errors
 
-            if set(series['tags']) != set(tags_list):
-                removed_tags = list(map(lambda x: tags_id_to_label.get(x), set(series['tags']) - set(tags_list)))
-                added_tags = list(map(lambda x: tags_id_to_label.get(x), set(tags_list) - set(series['tags'])))
-
-                message = f"{'Removed tags: ' + ','.join(removed_tags) + ' ' if len(removed_tags) > 0 else ''}"
-                message += f"{'Added tags: ' + ','.join(added_tags) if len(added_tags) > 0 else ''}"
-                send_notification(f"{series['title']}", message)
-
-                series['tags'] = tags_list
-                sonarr.upd_series(series)
-
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            logger.error('Failed to process series %s' % series['title'])
-            continue
 
     logger.debug('--------------------------------------------------')
     logger.info('Processed %i series.' % len(all_series))
