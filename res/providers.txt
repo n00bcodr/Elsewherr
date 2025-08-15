@@ -1,9 +1,11 @@
-AXN White Amazon Channel
+ AXN White Amazon Channel 
+10
 3Cat
 3sat
 5
 7plus
 9Now
+A&E
 A&E Crime Central Apple TV Channel
 ABC
 ABC On Demand Amazon Channel
@@ -46,7 +48,6 @@ All warrior network Amazon Channel
 Allente
 Alleskino
 Allstars Amazon Channel
-Alt Balaji
 Amazon Arthaus Channel
 Amazon MX Player
 Amazon Prime Video
@@ -74,6 +75,7 @@ Arthaus+ Apple TV channel
 Arthouse CNMA Amazon Channel
 ArthouseCNMA
 Asia Premium Amazon Channel 
+Asian Drama Channel Amazon Channel
 AsianCrush
 Aspire TV Amazon Channel
 Atres Player
@@ -103,7 +105,6 @@ Benshi Amazon Channel
 Bergblick Amazon Channel
 Best Westerns Ever Amazon Channel
 Best of British Tv Amazon Channel
-Bet+
 Bet+ Amazon Channel
 Bioskop Online
 Blockbuster
@@ -127,7 +128,6 @@ CDA Premium
 CG Collection Amazon channel
 CG tv
 CINE
-CNN Max Amazon Channel
 CTV
 Canal VOD
 Canal+
@@ -166,7 +166,6 @@ Cohen Media Amazon Channel
 Comedy Central Plus Amazon Channel
 Cranked Up TV
 Crave
-Crave Starz
 Criterion Channel
 Crunchyroll
 Crunchyroll Amazon Channel
@@ -193,6 +192,7 @@ Disney Plus
 DisneyNOW
 DistroTV
 Dizi Amazon Channel
+Djangowestern Amazon Channel
 DocAlliance Films
 DocCom Amazon Channel
 DocPlay
@@ -264,6 +264,7 @@ Foxtel Now
 Franatic Amazon Channel
 France Channel Amazon Channel
 France TV
+France TV Amazon Channel
 Freeform
 Freenet meinVOD
 Full Action Amazon Channel
@@ -288,6 +289,10 @@ Green Planet Stream Amazon Channel
 GuideDoc
 Gute Laune TV Amazon Channel
 HBO Max
+HBO Max  Amazon Channel
+HBO Max  CNN Amazon Channel
+HBO Max Amazon  Channel
+HBO Max Amazon Channel
 HISTORY Vault Amazon Channel
 HISTORY Vault Apple TV Channel
 HRTi
@@ -401,26 +406,22 @@ Magellan TV
 Magenta TV
 Magenta TV+
 MagentaTV
-Mangolia Selects Amazon Channel
+Magnolia Selects Amazon Channel
 ManoramaMAX Amazon Channel
 ManoramaMax
 Marquee TV Amazon Channel
-Max
-Max  Originals Amazon Channel
-Max Amazon Channel
-Max UNext Channel
 Mediaset Infinity
 Mercado Play
 Metrograph
-Microsoft Store
 Midnight Pulp
 Midnight Pulp Amazon Channel
-Mitele 
 Moconomy Amazon Channel
 Molotov TV
+Mometu
 Monomax
 Monsters and Nightmares Amazon Channel
 More TV
+Mosaik Amazon Channel
 MovieSaints
 MovieSphere+ Amazon Channel
 Moviecult Amazon Channel
@@ -428,10 +429,10 @@ Moviedome Plus Amazon Channel
 Movistar Plus+
 Movistar Plus+ Ficción Total 
 MovistarTV
-Museum Tv Amazon Channel
 NBC
 NECO Plus Amazon Channel
 NFB
+NFDC Amazon Channel
 NFL Game Pass Amazon Channel
 NHK Kodomo Park Amazon Channel
 NLZIET
@@ -456,7 +457,6 @@ Nova Play
 Now TV
 Now TV Cinema
 Nuestro Cine MX
-O2 TV
 ORF KIDS
 ORF ON
 OSN+
@@ -554,6 +554,7 @@ SVT
 Sat.1 emotions Amazon Channel
 Screambox
 Screambox Amazon Channel
+ScreenPix Amazon Channel 
 ScreenPix Apple TV Channel
 Serially
 ServusTV On
@@ -622,7 +623,6 @@ TOD TV
 TV 2
 TV 2 Play
 TV+
-TV1000 Russian Kino Amazon Channel
 TV4 Play
 TVCortos Amazon Channel
 TVING
@@ -724,7 +724,7 @@ fuboTV
 genflix
 iBAKATV
 iQIYI
-iWantTFC
+iWant
 iWonder Full Amazon channel
 iciTouTV
 iflix
@@ -735,7 +735,6 @@ myfilmfriend
 puhutv
 rtve
 tabii
-tenplay
 tru TV
 tvo
 wavve
