@@ -67,7 +67,6 @@ Apple TV
 Apple TV Plus Amazon Channel
 Apple TV+
 Argo
-AroVision Aotearoa
 Arrow Video Amazon Channel
 Arte
 Arthaus+
@@ -123,6 +122,7 @@ BroadwayHD
 Brollie
 Brown Sugar Amazon Channel
 BrutX Amazon Channel
+CANAL+
 CBC Gem
 CDA Premium
 CG Collection Amazon channel
@@ -131,7 +131,6 @@ CINE
 CTV
 Canal VOD
 Canal+
-Canal+ online
 Carnegie Hall+ Amazon Channel
 Carnegie Hall+ Apple TV Channel
 Cartoon Network Amazon Channel
@@ -149,7 +148,6 @@ CineAutore Amazon Channel
 CineMember
 CineMix+ Amazon Channel
 Cineasterna
-Cinefest Amazon Channel
 Cinefil Wow Plus Amazon Channel
 Cinema of Hearts Amazon Channel
 Cinemas a la Demande
@@ -164,7 +162,6 @@ Club Illico
 Cocina ON Amazon Channel
 Cohen Media Amazon Channel
 Comedy Central Plus Amazon Channel
-Cranked Up TV
 Crave
 Criterion Channel
 Crunchyroll
@@ -323,6 +320,7 @@ Hungama Play
 IFC Amazon Channel
 IFC Films Unlimited Apple TV Channel
 IFFR Unleashed
+IFI@Home
 INA  madelen Amazon Channel
 IROKOTV
 ITVX
@@ -338,6 +336,7 @@ Infinity+
 Insomnia Amazon Channel
 Ivi
 Iwonder Amazon Channel
+JPC
 Jidiaigeki Senmon Channel Amazon Channel
 JioHotstar
 Jolt Film
@@ -429,6 +428,7 @@ Moviedome Plus Amazon Channel
 Movistar Plus+
 Movistar Plus+ Ficción Total 
 MovistarTV
+Museum Tv Amazon Channel
 NBC
 NECO Plus Amazon Channel
 NFB
@@ -463,11 +463,10 @@ OSN+
 OUTtv Amazon Channel
 OUTtv Apple TV Channel
 OVID
-OWN Amazon Channel
-Okidoki Amazon Channel
 Okko
 Oldflix
 OnDemandKorea
+Oneplay
 Orange VOD
 Otta
 Outside TV Features Amzon Channel
@@ -612,7 +611,6 @@ Super Channel Plus
 Superfresh Amazon Channel
 TBS
 TCM
-TCM Amazon Channel
 TELE 5
 TELESA Amazon Channel
 TELETOON+ Amazon Channel
@@ -637,6 +635,7 @@ Telenet
 Telia Play
 Tenk
 Terra X Amazon Channel
+Thalia
 The CW
 The Coda Collection Amazon Channel
 The Roku Channel
@@ -705,7 +704,7 @@ Yorck on Demand
 YouTube
 YouTube Free
 YouTube Premium
-Youtube TV
+YouTube TV
 ZDF
 ZDF Herzkino Amazon Channel
 ZDF Krimi Amazon Channel

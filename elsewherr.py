@@ -1,22 +1,31 @@
 """
 Elsewherr - A script to automatically tag Sonarr/Radarr media
-with streaming provider information from TMDb, now with parallel processing.
+with streaming provider information from TMDb, now with parallel processing
+and enhanced tabular output.
 """
 
 import argparse
 import logging
 import os
 import re
+import sys
 import time
+import threading
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections import defaultdict
+from datetime import datetime
 
 import yaml
 from gotify import Gotify
 from pyarr import RadarrAPI, SonarrAPI
 from requests.exceptions import RequestException
 from tmdbv3api import TMDb, Find, Movie, TV
+from tabulate import tabulate
+from tqdm import tqdm
 
 # --- Constants ---
 MAX_RETRIES = 3
@@ -37,7 +46,6 @@ class Elsewherr:
         """
         self.base_dir = Path(__file__).resolve().parent
         self.logger = self._setup_logging(args)
-        self.logger.info("Elsewherr is starting.")
 
         self.config = self._load_config()
         self.tmdb = self._setup_tmdb()
@@ -46,6 +54,12 @@ class Elsewherr:
         self.prefix = self.config.get("prefix", "svcp-")
         self.providers = self.config.get("providers", [])
         self.region = self.config.get("tmdb", {}).get("region", "US")
+
+        # Add tracking for changes and errors
+        self.changes_lock = threading.Lock()
+        self.changes_log = []
+        self.errors_log = [] # To store items that failed or were skipped
+        self.service_stats = defaultdict(lambda: {'processed': 0, 'updated': 0, 'errors': 0})
 
     def _setup_logging(self, args: argparse.Namespace) -> logging.Logger:
         """
@@ -57,18 +71,32 @@ class Elsewherr:
         if log_file:
             log_file.parent.mkdir(exist_ok=True)
 
+        # Create a custom formatter that doesn't interfere with progress bars
+        formatter = logging.Formatter("%(levelname)-8s :: %(message)s")
+
+        # Create handlers
+        handlers = []
+
+        # Only add console handler if not running with progress bars
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        handlers.append(console_handler)
+
+        if log_file:
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(formatter)
+            handlers.append(file_handler)
+
         logging.basicConfig(
             level=log_level,
-            format="%(asctime)s :: %(levelname)-8s :: %(threadName)s :: %(message)s",
-            handlers=[
-                logging.StreamHandler(),
-                *(logging.FileHandler(log_file) for f in [log_file] if f),
-            ],
+            handlers=handlers,
         )
 
-        # Quieten noisy third-party loggers to prevent log spam in verbose mode.
+        # Quieten noisy third-party loggers to prevent log spam and progress bar interference
         logging.getLogger("requests").setLevel(logging.WARNING)
         logging.getLogger("urllib3").setLevel(logging.WARNING)
+        logging.getLogger("tmdbv3api").setLevel(logging.WARNING)
+        logging.getLogger("pyarr").setLevel(logging.WARNING)
 
         logger = logging.getLogger(__name__)
         if args.verbose:
@@ -126,16 +154,92 @@ class Elsewherr:
             except Exception as e:
                 self.logger.error(f"Failed to send Gotify notification: {e}")
 
+    def _log_change(self, service_name: str, title: str, added_labels: set, removed_labels: set, success: bool = True):
+        """
+        Thread-safe logging of changes with structured data collection.
+        """
+        change_parts = []
+        if removed_labels:
+            change_parts.append(f"❌ {', '.join(sorted(removed_labels))}")
+        if added_labels:
+            change_parts.append(f"✅ {', '.join(sorted(added_labels))}")
+
+        change_summary = " | ".join(change_parts) if change_parts else "No changes"
+
+        # Thread-safe logging
+        with self.changes_lock:
+            self.changes_log.append({
+                'service': service_name,
+                'title': title[:30] + "..." if len(title) > 30 else title,  # Truncate long titles
+                'changes': change_summary,
+            })
+
+            if success:
+                self.service_stats[service_name]['processed'] += 1
+                if change_parts:  # Only count as updated if there were actual changes
+                    self.service_stats[service_name]['updated'] += 1
+            else:
+                self.service_stats[service_name]['errors'] += 1
+
+    def _print_changes_summary(self):
+        """
+        Print neat tabular summaries of all changes and issues encountered.
+        """
+        # --- 1. Changes Summary ---
+        actual_changes = [change for change in self.changes_log if "No changes" not in change['changes']]
+
+        if actual_changes:
+            print("\n" + "="*100)
+            print("📊 CHANGES SUMMARY")
+            print("="*100)
+
+            table_data = [
+                [change['service'], change['title'], change['changes']]
+                for change in actual_changes
+            ]
+            headers = ['Service', 'Title', 'Changes']
+            print(tabulate(table_data, headers=headers, tablefmt='grid', maxcolwidths=[8, 35, 55]))
+        else:
+            print("\nNo tag changes were required during this run.")
+
+        # --- 2. Issues Summary ---
+        if self.errors_log:
+            print("\n" + "="*100)
+            print("⚠️ ISSUES SUMMARY")
+            print("="*100)
+            errors_table = [
+                [error['service'], error['title'], error['reason']]
+                for error in sorted(self.errors_log, key=lambda x: x['service'])
+            ]
+            errors_headers = ['Service', 'Title', 'Reason']
+            print(tabulate(errors_table, headers=errors_headers, tablefmt='grid', maxcolwidths=[8, 35, 55]))
+
+        # --- 3. Service Statistics ---
+        print("\n" + "="*60)
+        print("📈 SERVICE STATISTICS")
+        print("="*60)
+
+        stats_table = []
+        for service, stats in self.service_stats.items():
+            stats_table.append([
+                service,
+                stats['processed'],
+                stats['updated'],
+                stats['errors'],
+                f"{(stats['updated']/stats['processed']*100):.1f}%" if stats['processed'] > 0 else "0%"
+            ])
+
+        stats_headers = ['Service', 'Processed', 'Updated', 'Errors', 'Update Rate']
+        print(tabulate(stats_table, headers=stats_headers, tablefmt='grid'))
+        print("="*60 + "\n")
+
     def _process_single_item(self, item: Dict[str, Any], media_type: str, service_name: str, api_client: Any, tags_id_to_label: Dict, tags_label_to_id: Dict) -> bool:
         """
         Processes a single media item. This function is designed to be run in a thread.
-
         Returns:
-            True if the item was processed successfully (even if no changes were made),
-            False if a permanent error occurred.
+            True if the item was processed successfully, False if a permanent error occurred.
         """
         title = item["title"]
-        # self.logger.debug(f"Processing {media_type}: {title} (ID: {item['id']})")
 
         # Define service-specific functions
         get_providers_func = Movie().watch_providers if media_type == "movie" else TV().watch_providers
@@ -155,12 +259,26 @@ class Elsewherr:
                             tmdb_id = find_results["tv_results"][0]["id"]
 
                 if not tmdb_id:
-                    self.logger.warning(f"Could not find TMDB ID for '{title}'. Skipping.")
+                    with self.changes_lock:
+                        self.errors_log.append({
+                            'service': service_name,
+                            'title': title,
+                            'reason': 'TMDB ID not found.'
+                        })
+                    self._log_change(service_name, title, set(), set(), success=False)
                     return False
 
                 # Get watch providers from TMDb
-                providers_obj = get_providers_func(tmdb_id)
-                results = getattr(providers_obj, "results", {})
+                providers_response = get_providers_func(tmdb_id)
+
+                # Handle different response types without printing debug info
+                if hasattr(providers_response, 'results'):
+                    results = providers_response.results
+                elif isinstance(providers_response, dict):
+                    results = providers_response.get('results', {})
+                else:
+                    results = {}
+
                 flatrate_providers = results.get(self.region, {}).get("flatrate", [])
 
                 # Preserve existing tags that don't match our prefix
@@ -181,42 +299,58 @@ class Elsewherr:
 
                 # Compare and update if necessary
                 if current_tags_ids != new_tags_ids:
-                    # Construct a detailed message for logging and notification
+                    # Get readable tag names for logging
                     added_labels = {tags_id_to_label.get(t) for t in new_tags_ids - current_tags_ids if t}
                     removed_labels = {tags_id_to_label.get(t) for t in current_tags_ids - new_tags_ids if t}
+
+                    added_labels = {label for label in added_labels if label}
+                    removed_labels = {label for label in removed_labels if label}
+
+                    item["tags"] = list(new_tags_ids)
+                    # Redirect stdout only for the update call to catch the <class 'dict'> print
+                    captured_output = StringIO()
+                    with redirect_stdout(captured_output):
+                        update_media_func(item)
+
+                    self._log_change(service_name, title, added_labels, removed_labels, success=True)
 
                     change_parts = []
                     if removed_labels:
                         change_parts.append(f"Removed: {', '.join(sorted(removed_labels))}")
                     if added_labels:
                         change_parts.append(f"Added: {', '.join(sorted(added_labels))}")
-
                     change_summary = ". ".join(change_parts)
-                    self.logger.info(f"Updating tags for '{title}': {change_summary}")
-
-                    # Update the item and send to the API
-                    item["tags"] = list(new_tags_ids)
-                    update_media_func(item)
-
-                    # Send notification with the same summary
                     self.send_notification(f"{service_name}: {title}", change_summary)
                 else:
-                    self.logger.debug(f"No tag changes needed for '{title}'.")
+                    self._log_change(service_name, title, set(), set(), success=True)
 
                 return True  # Success
 
             except RequestException as e:
-                self.logger.warning(f"Network error for '{title}' (attempt {attempt + 1}/{MAX_RETRIES}): {e}")
                 if attempt < MAX_RETRIES - 1:
+                    # Don't log to console during progress, just wait and retry
                     time.sleep(RETRY_DELAY_SECONDS)
                 else:
-                    self.logger.error(f"Failed to process '{title}' after {MAX_RETRIES} attempts. Skipping.")
+                    # Only log after final attempt and after progress bar is done
+                    with self.changes_lock:
+                        self.errors_log.append({
+                            'service': service_name,
+                            'title': title,
+                            'reason': f"Network error after {MAX_RETRIES} retries."
+                        })
+                    self._log_change(service_name, title, set(), set(), success=False)
                     return False
             except Exception as e:
-                self.logger.error(f"An unexpected error occurred while processing '{title}': {e}", exc_info=True)
+                # Don't print exceptions during progress bar
+                with self.changes_lock:
+                    self.errors_log.append({
+                        'service': service_name,
+                        'title': title,
+                        'reason': 'Unexpected error occurred.'
+                    })
+                self._log_change(service_name, title, set(), set(), success=False)
                 return False # Break loop on non-network errors
         return False
-
 
     def _process_service(
         self,
@@ -227,55 +361,69 @@ class Elsewherr:
         """
         Processes a media service (Radarr or Sonarr) using a thread pool.
         """
-        self.logger.info(f"--- Processing {service_name} ---")
+        # Disable logging during processing to keep progress bars clean
+        original_level = logging.getLogger().getEffectiveLevel()
+        logging.getLogger().setLevel(logging.ERROR)
 
-        # 1. Get all media items from the service
         try:
-            get_media_func = api_client.get_movie if media_type == "movie" else api_client.get_series
-            all_media = get_media_func()
-        except Exception as e:
-            self.logger.error(f"Failed to get media from {service_name}: {e}")
-            return
+            # 1. Get all media items from the service
+            try:
+                get_media_func = api_client.get_movie if media_type == "movie" else api_client.get_series
+                all_media = get_media_func()
+            except Exception as e:
+                print(f"Failed to get media from {service_name}: {e}")
+                return
 
-        # 2. Ensure all required provider tags exist
-        self.logger.debug(f"Ensuring provider tags exist in {service_name}...")
-        for provider in self.providers:
-            api_client.create_tag(self._get_tag_label_for_provider(provider))
+            # 2. Ensure all required provider tags exist
+            for provider in self.providers:
+                api_client.create_tag(self._get_tag_label_for_provider(provider))
 
-        # 3. Create mappings for tag IDs and labels
-        all_tags = api_client.get_tag()
-        tags_id_to_label = {tag["id"]: tag["label"] for tag in all_tags}
-        tags_label_to_id = {tag["label"]: tag["id"] for tag in all_tags}
+            # 3. Create mappings for tag IDs and labels
+            all_tags = api_client.get_tag()
+            tags_id_to_label = {tag["id"]: tag["label"] for tag in all_tags}
+            tags_label_to_id = {tag["label"]: tag["id"] for tag in all_tags}
 
-        # 4. Process each media item in parallel
-        processed_count = 0
-        total_count = len(all_media)
-        self.logger.info(f"Found {total_count} {media_type} items. Processing with {MAX_WORKERS} workers...")
+            # 4. Process each media item in parallel
+            processed_count = 0
+            total_count = len(all_media)
 
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS, thread_name_prefix=f'{service_name}Worker') as executor:
-            # Submit all items to the thread pool
-            future_to_item = {
-                executor.submit(self._process_single_item, item, media_type, service_name, api_client, tags_id_to_label, tags_label_to_id): item
-                for item in all_media
-            }
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS, thread_name_prefix=f'{service_name}Worker') as executor:
+                future_to_item = {
+                    executor.submit(self._process_single_item, item, media_type, service_name, api_client, tags_id_to_label, tags_label_to_id): item
+                    for item in all_media
+                }
 
-            # Process results as they complete
-            for future in as_completed(future_to_item):
-                item = future_to_item[future]
-                try:
-                    success = future.result()
-                    if success:
-                        processed_count += 1
-                except Exception as e:
-                    self.logger.error(f"Error processing '{item['title']}': {e}", exc_info=True)
+                # Use tqdm for a clean progress bar
+                with tqdm(total=total_count, desc=f"Processing {service_name}", unit=" items",
+                         bar_format="{l_bar}{bar} | {n_fmt}/{total_fmt}") as pbar:
 
-        self.logger.info(f"--- Finished processing {service_name}: {processed_count}/{total_count} items processed successfully. ---")
+                    for future in as_completed(future_to_item):
+                        item = future_to_item[future]
+                        try:
+                            if future.result():
+                                processed_count += 1
+                        except Exception:
+                            # Silently handle exceptions during progress
+                            pass
+                        finally:
+                            pbar.update(1)
+
+        finally:
+            # Restore original logging level
+            logging.getLogger().setLevel(original_level)
+
+        updated_count = self.service_stats[service_name]['updated']
+        print(f"Finished processing {service_name}: {processed_count}/{total_count} items processed. {updated_count} items updated.")
         return processed_count
 
     def run(self):
         """
-        The main execution method for the script.
+        The main execution method for the script with enhanced output formatting.
         """
+        start_time = datetime.now()
+        print("\n🎬 ELSEWHERR - Media Streaming Provider Tagger")
+        print("=" * 60)
+
         summaries = []
 
         if self.config.get("radarr", {}).get("enabled"):
@@ -283,24 +431,36 @@ class Elsewherr:
             try:
                 radarr_api = RadarrAPI(host_url=radarr_config["url"], api_key=radarr_config["api_key"])
                 count = self._process_service("Radarr", radarr_api, "movie")
-                summaries.append(f"{count} movies")
+                if count is not None:
+                    summaries.append(f"{count} movies")
             except Exception as e:
-                self.logger.error(f"Failed to initialize Radarr API client: {e}")
+                print(f"Failed to initialize Radarr API client: {e}")
 
         if self.config.get("sonarr", {}).get("enabled"):
             sonarr_config = self.config["sonarr"]
             try:
                 sonarr_api = SonarrAPI(host_url=sonarr_config["url"], api_key=sonarr_config["api_key"])
                 count = self._process_service("Sonarr", sonarr_api, "series")
-                summaries.append(f"{count} series")
+                if count is not None:
+                    summaries.append(f"{count} series")
             except Exception as e:
-                self.logger.error(f"Failed to initialize Sonarr API client: {e}")
+                print(f"Failed to initialize Sonarr API client: {e}")
+
+        # Print the nice summary table
+        self._print_changes_summary()
+
+        # Calculate runtime
+        runtime = datetime.now() - start_time
+        runtime_str = f"{runtime.total_seconds():.1f}s"
 
         if summaries:
-            summary_message = f"Processed {' & '.join(summaries)}"
+            summary_message = f"Processed {' & '.join(summaries)} in {runtime_str}"
+            print(f"✅ {summary_message}")
             self.send_notification("Elsewherr Run Complete", summary_message)
+        else:
+            print(f"❌ No services were processed successfully. Runtime: {runtime_str}")
 
-        self.logger.info("Elsewherr has finished.")
+        print("🏁 Elsewherr has finished.\n")
 
 
 def main():
