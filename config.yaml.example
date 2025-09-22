@@ -13,10 +13,10 @@ gotify:
   enabled: false
   url: http://localhost
   token: xxx
+discord:
+  enabled: true
+  webhook_url: "your_discord_webhook_url_here"
 providers:
   - Netflix
   - Disney Plus
 prefix: elsewherr-
-
-
-

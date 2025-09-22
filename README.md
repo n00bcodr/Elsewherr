@@ -1,51 +1,78 @@
-**DISCLAIMER: This was thrown together by me late at night with limited python skills. Use it at your own risk. I provide zero warranty. If this nerfs your Radarr library I am really sorry, but theres nothing I can do.**
-
 # Elsewherr
 
 **What is it?**
 
-Elsewherr will see if your movies from Radarr are available on a streaming service, and add a tag against the movie if it is.
+Elsewherr is a Python script that connects to your Radarr and Sonarr instances to automatically tag your media based on its availability on streaming services. It uses the TMDb (The Movie Database) API to find out where your movies and shows are streaming.
 
 **How does it work?**
 
-The script will check The Movie Database (https://www.themoviedb.org/) via their API, which in turn uses Just Watch (https://www.justwatch.com/), to get all streaming services each movie is on. If it matches one of your chosen list to monitor, it then adds this tag in Radarr.
+The script fetches your entire media library from Radarr and Sonarr. For each item, it looks up the streaming providers in your specified region (e.g., "US", "CA"). If a movie or show is available on one of your chosen providers (like Netflix or Disney Plus), the script will automatically create and apply a corresponding tag (e.g., `elsewherr-netflix`) in Radarr or Sonarr.
 
 **Why?**
 
-Why not? What you do with this information is up to you. You might want to remove movies that are on Netflix to save space, or just like to know theres an option availble other than your local library.
+This allows you to see at a glance which of your media is available elsewhere. You can use these tags for various purposes:
+* **Library Management:** Create custom filters in Radarr/Sonarr to see what you could potentially remove to save space.
+* **Information:** Quickly know if a movie is on a service you subscribe to.
+* **Automation:** Use the tags as triggers for other scripts or actions.
 
-**How do I use it?**
-- Download, clone, or otherwise obtain this repo and put it somewhere
-- Run `python -m pip install -r requirements.txt` or `pip install -r requirements.txt`
-- Get an account at TMDb (https://www.themoviedb.org/) and grab an API key
-- Rename `config.yaml.example` to `config.yaml`
-- Edit `config.yaml` as per the table below
-- Run `python elsewherr.py`, or `run.bat` to run the script to run the Radarr script.
-- Run `python sonarr.py` to run the script to run the Sonarr script.
+---
 
-You might want to setup a scheduled task or something to run this regularly to keep the list up to date as moves are added to or drop off streaming services.
+### **How to Use It**
 
-**Parameters**
+1.  **Prerequisites:**
+    * Python 3.8+
+    * A TMDb account with an API key. You can get one for free at [themoviedb.org](https://www.themoviedb.org/).
 
-|Parameter|Description|
-|---|---|
-|tmdbApiKey|API Key for The Movie Database|
-|providerRegion|2 digit region code to use to check the availability of movies on that regions streaming service. The `providers.txt` file contains a list of codes|
-|radarrApiKey|Your API key for Radarr|
-|radarrUrl|Full URL including port to Radarr|
-|sonarrApiKey|Your API key for Sonarr|
-|sonarrUrl|Full URL including port to Sonarr|
-|requiredProviders|List of the providers you would like to search for. Providers must be entered *exactly* as they appear in the Providers list from TMDb to work. |
-|tagPrefix|Prefix that will be included in the tags added to Radarr and/or Sonarr|
+2.  **Setup:**
+    * Download or clone this repository.
+    * Install the required Python packages:
+        ```bash
+        pip install -r requirements.txt
+        ```
+    * Rename `config.yaml.example` to `config.yaml`.
 
-A list of Regions and Providers is available in `providers.txt`, but you can also run the `providers.py` script to grab an up to date list.
+3.  **Configuration:**
+    * Open `config.yaml` and fill in the details as explained in the table below.
 
-**Logging/Debugging**
+4.  **Running the Script:**
+    * Run the script from your terminal:
+        ```bash
+        python elsewherr.py
+        ```
+    * For more detailed logging, use the `-v` or `--verbose` flag:
+        ```bash
+        python elsewherr.py -v
+        ```
 
-By default Elsewherr will log all INFO logs out to `elsewhere.log` or `sonarr.log`. If you incluide the '-v' or '--verbose' argument when running the script (i.e. `python elsewherr.py -v` or `python elsewherr.py --verbose`) it will up the logging to DEBUG and output much more information to the logs.
+---
 
-The log file is overwritten each time the script is run.
+### **Configuration (`config.yaml`)**
 
-**Note:** The prefix is important, its used to remove all tags before re-adding to catch movies being removed from services. If you don't use a prefix, this script will remove all your tags from your movies. You can change it from the default *elsewherr-*, just make sure its unique.
+| Parameter | Description | Example |
+| :--- | :--- | :--- |
+| **tmdb.api_key** | **Required.** Your API Key for The Movie Database. | `xxx` |
+| **tmdb.region** | **Required.** A 2-digit region code to check for streaming availability.<br>Refer /res/regions.txt  | `US` |
+| **radarr.enabled** | Set to `true` to enable Radarr processing. | `true` |
+| **radarr.url** | The full URL to your Radarr instance, including the port. | `http://localhost:7878` |
+| **radarr.api_key**| Your Radarr API key. | `xxx` |
+| **sonarr.enabled** | Set to `true` to enable Sonarr processing. | `true` |
+| **sonarr.url** | The full URL to your Sonarr instance, including the port. | `http://localhost:8989` |
+| **sonarr.api_key**| Your Sonarr API key. | `xxx` |
+| **discord.enabled**| Set to `true` to send a summary report to a Discord channel. | `true` |
+| **discord.webhook_url**| The webhook URL for your Discord channel. | `xxx` |
+| **gotify.enabled** | Set to `true` to enable Gotify notifications. | `false` |
+| **gotify.url** | The URL for your Gotify instance. | `http://localhost` |
+| **gotify.token** | Your Gotify application token. | `xxx` |
+| **providers** | A list of streaming providers you want to track. **Must match TMDb's naming exactly.**<br>Refer /res/providers.txt | `- Netflix` <br> `- Disney Plus` |
+| **prefix** | A unique prefix for the tags created by this script. This is crucial for cleanup. | `elsewherr-` |
 
+>[!Important]
+>The script uses this **prefix** to identify and remove old tags before adding the new ones. This ensures that media removed from a streaming service will have it's tag correctly removed. **Do not use a generic prefix that might match other tags in your library.**
 
+---
+
+### **Logging & Debugging**
+
+* By default, the script prints INFO-level logs to the console.
+* You can enable DEBUG-level logging by running `python elsewherr.py --verbose`.
+* To save logs to a file (`elsewherr.log`), run `python elsewherr.py --log-to-file`. The log file is overwritten on each run.
