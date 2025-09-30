@@ -74,15 +74,7 @@ class Elsewherr:
 
         # Create a custom formatter that doesn't interfere with progress bars
         formatter = logging.Formatter("%(levelname)-8s :: %(message)s")
-
-        # Create handlers
-        handlers = []
-
-        # Only add console handler if not running with progress bars
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        handlers.append(console_handler)
-
+        handlers = [logging.StreamHandler()]
         if log_file:
             handlers.append(logging.FileHandler(log_file))
         for handler in handlers:
