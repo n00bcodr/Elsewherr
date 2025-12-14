@@ -16,6 +16,7 @@ ALLBLK Amazon channel
 ALLBLK Apple TV channel
 ALLWAYSBLK Amazon Channel
 AMC
+AMC Channels Amazon Channel
 AMC Plus Apple TV Channel 
 AMC+
 AMC+ Amazon Channel
@@ -64,11 +65,13 @@ Anime Times Amazon Channel
 Aniverse Amazon Channel
 Apollo
 Apple TV
-Apple TV Plus Amazon Channel
-Apple TV+
+Apple TV Amazon Channel
+Aquarius Amazon Channel
 Argo
 Arrow Video Amazon Channel
 Arte
+Arte Amazon Channel
+Artflix
 Arthaus+
 Arthaus+ Apple TV channel
 Arthouse CNMA Amazon Channel
@@ -85,6 +88,7 @@ BBC America
 BBC Earth Amazon Channel
 BBC Kids Amazon Channel
 BBC Player Amazon Channel
+BBC Select Apple Tv channel
 BBC iPlayer
 BET+  Apple TV channel
 BFI Player
@@ -107,10 +111,11 @@ Best of British Tv Amazon Channel
 Bet+ Amazon Channel
 Bioskop Online
 Blockbuster
+Bloodstream
 Bloody Movies Amazon Channel
 Bloome plus Amazon Channel
 BluTV Amazon Channel
-BongFlix Amazon Channel
+Booh Amazon Channel
 Bookmyshow
 Box Brazil Play Amazon Channel
 BoxOffice
@@ -126,9 +131,12 @@ CANAL+
 CBC Gem
 CDA Premium
 CG Collection Amazon channel
-CG tv
+CG TV STREAMING
+CHILI
 CINE
+CINE BMovie Amazon Channel
 CTV
+CaixaForum+
 Canal VOD
 Canal+
 Carnegie Hall+ Amazon Channel
@@ -153,8 +161,8 @@ Cinema of Hearts Amazon Channel
 Cinemas a la Demande
 Cinemax Amazon Channel
 Cinemax Apple TV Channel
-Cineplex
 Cineverse
+Cinobo
 Cinu
 Claro tv+
 Claro video
@@ -162,7 +170,9 @@ Club Illico
 Cocina ON Amazon Channel
 Cohen Media Amazon Channel
 Comedy Central Plus Amazon Channel
+CosmoGo
 Crave
+Crave Amazon Channel
 Criterion Channel
 Crunchyroll
 Crunchyroll Amazon Channel
@@ -181,11 +191,13 @@ Darkroom
 Dekkoo
 Dekkoo Amazon Channel
 Demand Africa Amazon Channel
+Diamond Films Amazon Channel
 Disaster X Amazon Channel
 Discovery +
 Discovery+
 Discovery+ Amazon Channel
 Disney Plus
+Disney+ Hotstar
 DisneyNOW
 DistroTV
 Dizi Amazon Channel
@@ -260,7 +272,6 @@ Food Matters Amazon Channel
 Foxtel Now
 Franatic Amazon Channel
 France Channel Amazon Channel
-France TV
 France TV Amazon Channel
 Freeform
 Freenet meinVOD
@@ -275,6 +286,7 @@ GRJNGO Amazon Channel
 Gaia Amazon Channel
 Gaiam TV Yoga & Fit
 Galactic Stream Amazon Channel
+Gaumont Amazon Channel
 GlewedTV
 Global TV
 Globoplay
@@ -284,12 +296,13 @@ Google Play Movies
 Great American Pure Flix Amazon Channel
 Green Planet Stream Amazon Channel
 GuideDoc
+Gullimax Amazon Channel
 Gute Laune TV Amazon Channel
 HBO Max
 HBO Max  Amazon Channel
 HBO Max  CNN Amazon Channel
-HBO Max Amazon  Channel
 HBO Max Amazon Channel
+HBO Max on U-Next
 HISTORY Vault Amazon Channel
 HISTORY Vault Apple TV Channel
 HRTi
@@ -314,7 +327,6 @@ Hollywood Suite Amazon Channel
 Home of Horror
 Home of Horror Amazon Channel
 Hoopla
-Hotstar
 Hulu
 Hungama Play
 IFC Amazon Channel
@@ -336,7 +348,6 @@ Infinity+
 Insomnia Amazon Channel
 Ivi
 Iwonder Amazon Channel
-JPC
 Jidiaigeki Senmon Channel Amazon Channel
 JioHotstar
 Jolt Film
@@ -346,7 +357,9 @@ JustWatchTV
 KADOKAWA channel Amazon Channel
 KKTV
 KPN
+KQED
 Kabel Eins Classics Amazon Channel
+KableOne
 Kanopy
 Kartoon Channel Amazon Channel
 KiKA
@@ -421,6 +434,7 @@ Monomax
 Monsters and Nightmares Amazon Channel
 More TV
 Mosaik Amazon Channel
+MovieMe
 MovieSaints
 MovieSphere+ Amazon Channel
 Moviecult Amazon Channel
@@ -454,6 +468,7 @@ Nihon Eiga Net Amazon Channel
 Noovo
 Nordisk Film+
 Nova Play
+Novecento Amazon Channel
 Now TV
 Now TV Cinema
 Nuestro Cine MX
@@ -465,10 +480,12 @@ OUTtv Apple TV Channel
 OVID
 Okko
 Oldflix
+On Air 
 OnDemandKorea
 Oneplay
 Orange VOD
 Otta
+Outbuster Amazon Channel
 Outside TV Features Amzon Channel
 Outside Watch
 OzFlix
@@ -482,13 +499,14 @@ Paramount Pictures
 Paramount Plus
 Paramount Plus Apple TV Channel 
 Paramount Plus Basic with Ads
+Paramount Plus Essential
 Paramount Plus Premium
 Paramount+ Amazon Channel
 Paramount+ MTV Amazon Channel
 Paramount+ Originals Amazon Channel
 Paramount+ Roku Premium Channel
-Paramount+ with Showtime
 Passionflix Amazon Channel
+Pathé Home
 Pathé Thuis
 Peacock Premium
 Peacock Premium Plus
@@ -506,11 +524,11 @@ Plex Channel
 Plus GAGA Amazon Channel
 Plus Shochiku Amazon Channel
 Pluto TV
+Pluto TV Live
 Pokémon Amazon Channel
 Polsat Box Go
 Pongalo Amazon Channel  
 Popcorntimes
-Popflick
 Premier
 Premiere Max
 Premiery Canal+
@@ -520,6 +538,7 @@ Public Domain Movies
 Pure Flix
 QFT Player
 Qello Concerts by Stingray Amazon Channel
+Queens club Amazon Channel
 Queer Cinemab Amazon Channel
 RTBF Auvio
 RTL Crime Amazon Channel
@@ -527,6 +546,7 @@ RTL Living Amazon Channel
 RTL Passion Amazon Channel
 RTL Play
 RTL+
+RTL+ Max Amazon Channel
 RTPplay
 Rai Play
 Rakuten TV
@@ -551,10 +571,10 @@ STUDIOCANAL PRESENTS Apple TV Channel
 STV Player
 SVT
 Sat.1 emotions Amazon Channel
-Screambox
 Screambox Amazon Channel
 ScreenPix Amazon Channel 
 ScreenPix Apple TV Channel
+Sensical Amazon Channel
 Serially
 ServusTV On
 Seven Entertainment Amazon Channel
@@ -615,12 +635,14 @@ TELE 5
 TELESA Amazon Channel
 TELETOON+ Amazon Channel
 TF1+
+TFOU Max Amazon Channel
 TNT
 TOD
 TOD TV
 TV 2
 TV 2 Play
 TV+
+TV2 Skyshowtime
 TV4 Play
 TVCortos Amazon Channel
 TVING
@@ -634,8 +656,8 @@ Telecine Amazon Channel
 Telenet
 Telia Play
 Tenk
+Tentkotta
 Terra X Amazon Channel
-Thalia
 The CW
 The Coda Collection Amazon Channel
 The Roku Channel
@@ -661,7 +683,6 @@ UP Faith & Family Apple TV Channel
 UPC TV
 USA Network
 Univer Video
-Universal Pictures
 Universal+ Amazon Channel
 Universcine
 Universcine Amazon Channel
@@ -680,11 +701,13 @@ Videobuster
 Videoland
 Videoload
 Vidio
+Vimeo
 Viu
 Vix Gratis Amazon Channel
 Voyo
 Vrott Amazon Channel
 W4free
+WETA+
 WOW
 WOW Presents Plus
 WWE Network
@@ -708,6 +731,7 @@ YouTube TV
 ZDF
 ZDF Herzkino Amazon Channel
 ZDF Krimi Amazon Channel
+ZDF Schatzkiste Amazon channel
 ZDF Select Amazon Channel 
 ZDFtivi Amazon channel
 Zee5
