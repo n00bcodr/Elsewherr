@@ -1,9 +1,17 @@
 import requests
 import os
 import yaml
+import argparse
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
-config = yaml.safe_load(open(os.path.join(script_directory, 'config.yaml')))
+
+# Parse command-line arguments
+parser = argparse.ArgumentParser(description="Generate provider and region resource files from TMDb.")
+parser.add_argument("-c", "--config", type=str, default="config.yaml", help="Path to config file (default: config.yaml)")
+args = parser.parse_args()
+
+config_path = args.config if os.path.isabs(args.config) else os.path.join(script_directory, args.config)
+config = yaml.safe_load(open(config_path))
 
 if not config['tmdb']['api_key']:
     raise ImportError(name='config.yaml')

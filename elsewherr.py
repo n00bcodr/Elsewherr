@@ -45,6 +45,7 @@ class Elsewherr:
         Initializes the Elsewherr application.
         """
         self.base_dir = Path(__file__).resolve().parent
+        self.config_file = args.config
         self.logger = self._setup_logging(args)
 
         self.config = self._load_config()
@@ -89,9 +90,9 @@ class Elsewherr:
 
     def _load_config(self) -> Dict[str, Any]:
         """
-        Loads the configuration from config.yaml.
+        Loads the configuration from the specified config file.
         """
-        config_path = self.base_dir / "config.yaml"
+        config_path = Path(self.config_file) if self.config_file else self.base_dir / "config.yaml"
         self.logger.debug(f"Loading configuration from {config_path}")
         try:
             with open(config_path, "r") as f:
@@ -366,6 +367,7 @@ class Elsewherr:
 
 def main():
     parser = argparse.ArgumentParser(description="Tag Radarr/Sonarr media with streaming provider info.")
+    parser.add_argument("-c", "--config", type=str, default=None, help="Path to config file (default: config.yaml)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose (DEBUG level) logging.")
     parser.add_argument("-l", "--log-to-file", action="store_true", help="Enable logging to a file.")
     args = parser.parse_args()
