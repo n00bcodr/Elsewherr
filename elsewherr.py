@@ -75,12 +75,19 @@ class Elsewherr:
 
         # Create a custom formatter that doesn't interfere with progress bars
         formatter = logging.Formatter("%(levelname)-8s :: %(message)s")
-        handlers = [logging.StreamHandler()]
+        handlers = []
+        
+        # Only add StreamHandler if not using tqdm (we'll configure it with tqdm.write later)
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        handlers.append(stream_handler)
+        
         if log_file:
-            handlers.append(logging.FileHandler(log_file))
-        for handler in handlers:
-            handler.setFormatter(formatter)
-        logging.basicConfig(level=log_level, handlers=handlers)
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(formatter)
+            handlers.append(file_handler)
+            
+        logging.basicConfig(level=log_level, handlers=handlers, force=True)
         for logger_name in ["requests", "urllib3", "tmdbv3api", "pyarr"]:
             logging.getLogger(logger_name).setLevel(logging.WARNING)
         logger = logging.getLogger(__name__)
@@ -267,7 +274,7 @@ class Elsewherr:
         title = item["title"]
         get_providers_func = Movie().watch_providers if media_type == "movie" else TV().watch_providers
         update_media_func = api_client.upd_movie if media_type == "movie" else api_client.upd_series
-        for _ in range(MAX_RETRIES):
+        for retry_attempt in range(MAX_RETRIES):
             try:
                 tmdb_id = item.get("tmdbId") if media_type == "movie" else (Find().find_by_tvdb_id(str(item.get("tvdbId"))).get("tv_results", [{}])[0].get("id"))
                 if not tmdb_id:
@@ -296,11 +303,18 @@ class Elsewherr:
                 else:
                     self._log_change(service_name, title, set(), set(), success=True)
                 return True
-            except RequestException:
-                time.sleep(RETRY_DELAY_SECONDS)
-            except Exception:
+            except RequestException as e:
+                error_msg = f"{type(e).__name__}: {str(e)}"
+                if retry_attempt < MAX_RETRIES - 1:
+                    self.logger.warning(f"Network error for '{title}' (attempt {retry_attempt + 1}/{MAX_RETRIES}): {error_msg}. Retrying in {RETRY_DELAY_SECONDS}s...")
+                    time.sleep(RETRY_DELAY_SECONDS)
+                else:
+                    self.logger.error(f"Network error for '{title}' after {MAX_RETRIES} attempts: {error_msg}")
+            except Exception as e:
+                error_msg = f"{type(e).__name__}: {str(e)}"
+                self.logger.error(f"Unexpected error processing '{title}': {error_msg}")
                 with self.changes_lock:
-                    self.errors_log.append({'service': service_name, 'title': title, 'reason': 'Unexpected error.'})
+                    self.errors_log.append({'service': service_name, 'title': title, 'reason': f'Error: {error_msg[:50]}'})
                 self._log_change(service_name, title, set(), set(), success=False)
                 return False
         with self.changes_lock:
@@ -319,12 +333,33 @@ class Elsewherr:
             all_tags = api_client.get_tag()
             tags_id_to_label = {tag["id"]: tag["label"] for tag in all_tags}
             tags_label_to_id = {tag["label"]: tag["id"] for tag in all_tags}
-            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                futures = [executor.submit(self._process_single_item, item, media_type, service_name, api_client, tags_id_to_label, tags_label_to_id) for item in all_media]
-                with tqdm(total=len(all_media), desc=f"Processing {service_name}", unit=" items",
-                    bar_format='{l_bar}{bar} | {n_fmt}/{total_fmt}') as pbar:
-                    for future in as_completed(futures):
-                        pbar.update(1)
+            
+            # Configure logging to use tqdm.write during progress bar display
+            class TqdmLoggingHandler(logging.Handler):
+                def emit(self, record):
+                    try:
+                        msg = self.format(record)
+                        tqdm.write(msg)
+                    except Exception:
+                        self.handleError(record)
+            
+            # Temporarily replace stream handler with tqdm-compatible one
+            root_logger = logging.getLogger()
+            original_handlers = root_logger.handlers[:]
+            tqdm_handler = TqdmLoggingHandler()
+            tqdm_handler.setFormatter(logging.Formatter("%(levelname)-8s :: %(message)s"))
+            root_logger.handlers = [h for h in root_logger.handlers if not isinstance(h, logging.StreamHandler)] + [tqdm_handler]
+            
+            try:
+                with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+                    futures = [executor.submit(self._process_single_item, item, media_type, service_name, api_client, tags_id_to_label, tags_label_to_id) for item in all_media]
+                    with tqdm(total=len(all_media), desc=f"Processing {service_name}", unit=" items",
+                        bar_format='{l_bar}{bar} | {n_fmt}/{total_fmt}', position=0, leave=True) as pbar:
+                        for future in as_completed(futures):
+                            pbar.update(1)
+            finally:
+                # Restore original handlers
+                root_logger.handlers = original_handlers
         finally:
             logging.getLogger().setLevel(original_level)
         print(f"Finished processing {service_name}: {self.service_stats[service_name]['processed']}/{len(all_media)} items processed. {self.service_stats[service_name]['updated']} items updated.")
@@ -355,6 +390,20 @@ class Elsewherr:
         time.sleep(0.1)  # Allow tqdm to finish cleaning up
 
         self._print_changes_summary()
+        
+        # Save detailed error log if there were any errors
+        if self.errors_log:
+            error_log_file = self.base_dir / "logs" / f"errors_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+            error_log_file.parent.mkdir(exist_ok=True)
+            with open(error_log_file, 'w', encoding='utf-8') as f:
+                f.write(f"Elsewherr Error Log - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("=" * 80 + "\n\n")
+                for error in self.errors_log:
+                    f.write(f"Service: {error['service']}\n")
+                    f.write(f"Title: {error['title']}\n")
+                    f.write(f"Reason: {error['reason']}\n")
+                    f.write("-" * 80 + "\n")
+            print(f"💾 Detailed error log saved to: {error_log_file}")
 
         runtime = f"{(datetime.now() - start_time).total_seconds():.1f}s"
         if summaries:
