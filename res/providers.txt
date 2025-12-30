@@ -42,6 +42,7 @@ Action Max Amazon Channel
 Adrenalin Amazon channel
 Adrenalina Pura Amazon channel
 Adrenalina Pura Apple TV channel
+Adult Swim
 Adultswim Amazon Channel
 Akibapass
 Alchemiya Amazon Channel
@@ -197,7 +198,7 @@ Discovery +
 Discovery+
 Discovery+ Amazon Channel
 Disney Plus
-Disney+ Hotstar
+Disney+
 DisneyNOW
 DistroTV
 Dizi Amazon Channel
@@ -385,8 +386,6 @@ Lifetime
 Lifetime Movie Club
 Lifetime Movie Club Amazon Channel
 Lifetime Movie Club Apple TV Channel
-Lifetime Play Amazon Channel
-Lifetime Play Apple TV Channel
 Lionsgate Play
 Lionsgate Play Amazon Channel
 Lionsgate Play Apple TV Channel
@@ -482,6 +481,7 @@ Okko
 Oldflix
 On Air 
 OnDemandKorea
+Ondamedia
 Oneplay
 Orange VOD
 Otta
@@ -647,6 +647,7 @@ TV4 Play
 TVCortos Amazon Channel
 TVING
 TVNZ+
+TVP
 Takflix
 Tastemade Amazon Channel 
 Tastemade Apple TV Channel
@@ -717,6 +718,7 @@ Watcha
 WeTV
 Wedo TV
 Wild West Amzon Channel
+Wow Fiction Amazon Channel
 XLTV Amazon Channel 
 Xive TV Documentaries Amazon Channel
 Xumo Play
