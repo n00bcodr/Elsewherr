@@ -127,3 +127,4 @@ dmypy.json
 .vscode
 config*.*
 /.idea
+*.yaml
