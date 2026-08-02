@@ -43,6 +43,59 @@ This allows you to see at a glance which of your media is available elsewhere. Y
         ```bash
         python elsewherr.py -v
         ```
+    * To use a config file at a different path, pass `-c`/`--config`:
+        ```bash
+        python elsewherr.py --config /path/to/my-config.yaml
+        ```
+
+---
+
+### **Running with Docker**
+
+A prebuilt image is published to `ghcr.io/n00bcodr/elsewherr` via GitHub Actions whenever a version tag (e.g. `v1.2.0`) is pushed.
+
+**Single config, one-off run:**
+```bash
+docker run --rm \
+  -v ./config.yaml:/usr/src/app/config.yaml \
+  ghcr.io/n00bcodr/elsewherr:latest
+```
+
+**docker-compose (single config, scheduled):**
+```yaml
+services:
+  elsewherr:
+    image: ghcr.io/n00bcodr/elsewherr:latest
+    container_name: elsewherr
+    restart: unless-stopped
+    environment:
+      - SCHEDULE=0 */6 * * *   # standard 5-field cron expression; omit or set to "None" to run once and exit
+    volumes:
+      - ./config.yaml:/usr/src/app/config.yaml
+      - ./logs:/usr/src/app/logs
+```
+
+**docker-compose (multiple configs, scheduled):**
+
+If you manage more than one library/region (e.g. separate config files per region or per Radarr/Sonarr instance), mount a directory of config files to `/usr/src/app/config` instead of a single file. On every run (or every cron tick), the container loops over each `.yaml`/`.yml` file in that directory and runs `elsewherr.py --config <file>` against it in turn.
+
+```yaml
+services:
+  elsewherr:
+    image: ghcr.io/n00bcodr/elsewherr:latest
+    container_name: elsewherr
+    restart: unless-stopped
+    environment:
+      - SCHEDULE=0 */6 * * *
+    volumes:
+      - ./configs:/usr/src/app/config   # directory containing IE.yaml, IN.yaml, etc.
+      - ./logs:/usr/src/app/logs
+```
+
+| Env Var | Description | Default |
+| :--- | :--- | :--- |
+| **SCHEDULE** | A cron expression (e.g. `0 */6 * * *`) controlling how often the script runs inside the container. Set to `None` (or omit) to run once and exit. | `None` |
+| **CONFIG_DIR** | Directory to scan for `.yaml`/`.yml` config files. If it exists and contains config files, each is processed in turn. Otherwise falls back to the single `/usr/src/app/config.yaml`. | `/usr/src/app/config` |
 
 ---
 
