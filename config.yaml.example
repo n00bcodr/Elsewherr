@@ -1,22 +1,43 @@
+# Elsewherr — example configuration
+# Copy this file to config.yaml and fill in your details.
+
 tmdb:
-  api_key: xxx
-  region: CA
+  api_key: "YOUR_TMDB_API_KEY"   # https://www.themoviedb.org/settings/api
+  region: "US"                   # 2-letter region code — see res/regions.txt
+
 radarr:
   enabled: true
-  url: http://localhost:7878
-  api_key: xxx
+  url: "http://localhost:7878"
+  api_key: "YOUR_RADARR_API_KEY"
+
 sonarr:
   enabled: true
-  url: http://localhost:8989
-  api_key: xxx
+  url: "http://localhost:8989"
+  api_key: "YOUR_SONARR_API_KEY"
+
+discord:
+  enabled: false
+  webhook_url: ""
+
 gotify:
   enabled: false
-  url: http://localhost
-  token: xxx
-discord:
-  enabled: true
-  webhook_url: "your_discord_webhook_url_here"
+  url: "http://localhost"
+  token: ""
+
+# Providers to track — names must match TMDb exactly.
+# Run res_generator.py to regenerate the full list in res/providers.txt.
 providers:
   - Netflix
   - Disney Plus
-prefix: elsewherr-
+  - Amazon Prime Video
+  - Apple TV Plus
+  - Max
+  - Hulu
+  - Peacock Premium
+  - Paramount Plus
+
+# Prefix applied to every tag this script creates.
+# Elsewherr removes all tags with this prefix before re-applying current ones,
+# so a stale tag (show left a service) is cleaned up automatically.
+# WARNING: do NOT use a prefix that could match tags you've created manually.
+prefix: "elsewherr-"
