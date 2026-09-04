@@ -22,12 +22,20 @@ from datetime import datetime
 
 import yaml
 import requests
+import urllib3.util.connection as urllib3_connection
 from gotify import Gotify
 from pyarr import RadarrAPI, SonarrAPI
 from requests.exceptions import RequestException
 from tmdbv3api import TMDb, Find, Movie, TV
 from tabulate import tabulate
 from tqdm import tqdm
+
+# Some Docker hosts (notably Docker Desktop on Windows/WSL2) advertise IPv6
+# routes that don't actually work. urllib3 (via requests/pyarr/tmdbv3api)
+# tries IPv6 addresses first, so a broken IPv6 route makes every outbound
+# call fail/retry against unreachable addresses before ever trying the
+# working IPv4 one. Force IPv4-only DNS resolution to avoid that entirely.
+urllib3_connection.allowed_gai_family = lambda: socket.AF_INET
 
 # --- Constants ---
 MAX_RETRIES = 3
