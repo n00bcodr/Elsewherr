@@ -6,10 +6,10 @@ run_once() {
   if [ -d "${CONFIG_DIR}" ] && ls "${CONFIG_DIR}"/*.y*ml >/dev/null 2>&1; then
     for config in "${CONFIG_DIR}"/*.y*ml; do
       echo "=== Running elsewherr.py with config: ${config} ==="
-      python /usr/src/app/elsewherr.py --config "${config}"
+      /usr/local/bin/python /usr/src/app/elsewherr.py --config "${config}"
     done
   else
-    python /usr/src/app/elsewherr.py
+    /usr/local/bin/python /usr/src/app/elsewherr.py
   fi
 }
 
@@ -21,5 +21,9 @@ fi
 if [ "${SCHEDULE}" = "None" ]; then
   run_once
 else
-  echo "${SCHEDULE} CONFIG_DIR=${CONFIG_DIR} /usr/src/app/run.sh once" | crontab - && crond -f -L /dev/stdout
+  CRON_LOG=/var/log/cron.log
+  touch "${CRON_LOG}"
+  echo "${SCHEDULE} CONFIG_DIR=${CONFIG_DIR} /usr/src/app/run.sh once >> ${CRON_LOG} 2>&1" | crontab -
+  cron
+  tail -f "${CRON_LOG}"
 fi

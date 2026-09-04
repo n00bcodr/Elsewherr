@@ -8,6 +8,7 @@ import argparse
 import logging
 import os
 import re
+import socket
 import sys
 import time
 import threading
@@ -33,6 +34,10 @@ MAX_RETRIES = 3
 RETRY_DELAY_SECONDS = 30
 # 10 is a safe number to avoid hitting the TMDB API rate limit (~50 req/sec).
 MAX_WORKERS = 20
+# None of pyarr/tmdbv3api/requests set a socket timeout, so an unreachable or
+# black-holed host (common inside Docker's virtual network) can hang forever.
+# This makes every socket in the process fail fast instead.
+SOCKET_TIMEOUT_SECONDS = 15
 
 
 class Elsewherr:
@@ -415,6 +420,7 @@ class Elsewherr:
         print("🏁 Elsewherr has finished.\n")
 
 def main():
+    socket.setdefaulttimeout(SOCKET_TIMEOUT_SECONDS)
     parser = argparse.ArgumentParser(description="Tag Radarr/Sonarr media with streaming provider info.")
     parser.add_argument("-c", "--config", type=str, default=None, help="Path to config file (default: config.yaml)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose (DEBUG level) logging.")
