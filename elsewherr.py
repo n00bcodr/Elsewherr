@@ -224,7 +224,8 @@ class Elsewherr:
         else:
             suffix = ["st", "nd", "rd"][day % 10 - 1]
         date_str = now.strftime(f'%B {day}{suffix}, %Y')
-        summary_output.append(f"🎬 Elsewherr Summary - {date_str}\n")
+        config_name = Path(self.config_file).name if self.config_file else "config.yaml"
+        summary_output.append(f"🎬 Elsewherr Summary - {date_str} ({config_name})\n")
 
 
         # --- 1. Changes Summary ---
@@ -391,7 +392,7 @@ class Elsewherr:
             try:
                 with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
                     futures = [executor.submit(self._process_single_item, item, media_type, service_name, api_client, tags_id_to_label, tags_label_to_id) for item in all_media]
-                    with tqdm(total=len(all_media), desc=f"Processing {service_name}", unit=" items",
+                    with tqdm(total=len(all_media), desc=f"Processing {service_name}", unit=" items", disable=not sys.stderr.isatty(),
                         bar_format='{l_bar}{bar} | {n_fmt}/{total_fmt}', position=0, leave=True) as pbar:
                         for future in as_completed(futures):
                             pbar.update(1)
