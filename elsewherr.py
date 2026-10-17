@@ -24,6 +24,7 @@ import yaml
 import requests
 import urllib3.util.connection as urllib3_connection
 from pyarr import RadarrAPI, SonarrAPI
+from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
 from tmdbv3api import TMDb, Find, Movie, TV
 from tabulate import tabulate
@@ -40,7 +41,7 @@ urllib3_connection.allowed_gai_family = lambda: socket.AF_INET
 MAX_RETRIES = 3
 RETRY_DELAY_SECONDS = 30
 # 10 is a safe number to avoid hitting the TMDB API rate limit (~50 req/sec).
-MAX_WORKERS = 20
+MAX_WORKERS = 10
 # None of pyarr/tmdbv3api/requests set a socket timeout, so an unreachable or
 # black-holed host (common inside Docker's virtual network) can hang forever.
 # This makes every socket in the process fail fast instead.
@@ -131,6 +132,13 @@ class Elsewherr:
             sys.exit(1)
         tmdb = TMDb()
         tmdb.api_key = tmdb_api_key
+        # tmdbv3api builds a new Session (and by default an unbounded per-call cache with
+        # fresh connections) for every Movie()/TV()/Find(); that exhausted file descriptors.
+        # Disable its cache and share one pooled session across single reused clients.
+        tmdb.cache = False
+        session = requests.Session()
+        session.mount("https://", HTTPAdapter(pool_maxsize=MAX_WORKERS))
+        self.movie_api, self.tv_api, self.find_api = (c(session=session) for c in (Movie, TV, Find))
         return tmdb
 
     def _setup_discord(self) -> Optional[str]:
@@ -266,11 +274,11 @@ class Elsewherr:
 
     def _process_single_item(self, item: Dict[str, Any], media_type: str, service_name: str, api_client: Any, tags_id_to_label: Dict, tags_label_to_id: Dict) -> bool:
         title = item["title"]
-        get_providers_func = Movie().watch_providers if media_type == "movie" else TV().watch_providers
+        get_providers_func = self.movie_api.watch_providers if media_type == "movie" else self.tv_api.watch_providers
         for retry_attempt in range(MAX_RETRIES):
             try:
                 # Sonarr v4 supplies tmdbId directly; only fall back to the extra TMDB lookup if absent.
-                tmdb_id = item.get("tmdbId") or (None if media_type == "movie" else Find().find_by_tvdb_id(str(item.get("tvdbId"))).get("tv_results", [{}])[0].get("id"))
+                tmdb_id = item.get("tmdbId") or (None if media_type == "movie" else self.find_api.find_by_tvdb_id(str(item.get("tvdbId"))).get("tv_results", [{}])[0].get("id"))
                 if not tmdb_id:
                     with self.changes_lock:
                         self.errors_log.append({'service': service_name, 'title': title, 'reason': 'TMDB ID not found.'})
