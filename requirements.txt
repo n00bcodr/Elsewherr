@@ -2,7 +2,6 @@ anyio==3.6.2
 certifi==2024.7.4
 chardet==5.1.0
 charset-normalizer==3.0.1
-gotify==0.5.0
 h11==0.14.0
 httpcore==0.16.3
 httpx==0.23.3

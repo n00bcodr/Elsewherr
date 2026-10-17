@@ -5,24 +5,31 @@ tmdb:
   api_key: "YOUR_TMDB_API_KEY"   # https://www.themoviedb.org/settings/api
   region: "US"                   # 2-letter region code — see res/regions.txt
 
+# radarr / sonarr can be a single block, or a list for multiple instances
+# (e.g. HD + 4K). "name" is optional but must be unique per instance.
 radarr:
-  enabled: true
-  url: "http://localhost:7878"
-  api_key: "YOUR_RADARR_API_KEY"
+  - name: "Radarr"
+    enabled: true
+    url: "http://localhost:7878"
+    api_key: "YOUR_RADARR_API_KEY"
+  - name: "Radarr 4K"
+    enabled: true
+    url: "http://localhost:7879"
+    api_key: "YOUR_RADARR_4K_API_KEY"
 
 sonarr:
-  enabled: true
-  url: "http://localhost:8989"
-  api_key: "YOUR_SONARR_API_KEY"
+  - name: "Sonarr"
+    enabled: true
+    url: "http://localhost:8989"
+    api_key: "YOUR_SONARR_API_KEY"
+  - name: "Sonarr 4K"
+    enabled: true
+    url: "http://localhost:8990"
+    api_key: "YOUR_SONARR_4K_API_KEY"
 
 discord:
   enabled: false
   webhook_url: ""
-
-gotify:
-  enabled: false
-  url: "http://localhost"
-  token: ""
 
 # Providers to track — names must match TMDb exactly.
 # Run res_generator.py to regenerate the full list in res/providers.txt.

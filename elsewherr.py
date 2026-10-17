@@ -23,7 +23,6 @@ from datetime import datetime
 import yaml
 import requests
 import urllib3.util.connection as urllib3_connection
-from gotify import Gotify
 from pyarr import RadarrAPI, SonarrAPI
 from requests.exceptions import RequestException
 from tmdbv3api import TMDb, Find, Movie, TV
@@ -63,7 +62,6 @@ class Elsewherr:
 
         self.config = self._load_config()
         self.tmdb = self._setup_tmdb()
-        self.gotify = self._setup_gotify()
         self.discord_webhook_url = self._setup_discord()
 
         self.prefix = self.config.get("prefix", "svcp-")
@@ -73,6 +71,7 @@ class Elsewherr:
         # Add tracking for changes and errors
         self.changes_lock = threading.Lock()
         self.changes_log = []
+        self.pending_changes = []  # tag changes queued for bulk apply
         self.errors_log = [] # To store items that failed or were skipped
         self.service_stats = defaultdict(lambda: {'processed': 0, 'updated': 0, 'errors': 0})
 
@@ -134,15 +133,6 @@ class Elsewherr:
         tmdb.api_key = tmdb_api_key
         return tmdb
 
-    def _setup_gotify(self) -> Optional[Gotify]:
-        """Initializes and returns a Gotify client if configured."""
-        if self.config.get("gotify", {}).get("enabled"):
-            self.logger.debug("Gotify notifications enabled.")
-            gotify_config = self.config["gotify"]
-            return Gotify(base_url=gotify_config["url"], app_token=gotify_config["token"])
-        self.logger.debug("Gotify notifications disabled.")
-        return None
-
     def _setup_discord(self) -> Optional[str]:
         """Initializes and returns the Discord webhook URL if configured."""
         if self.config.get("discord", {}).get("enabled"):
@@ -159,15 +149,6 @@ class Elsewherr:
         """
         sanitized_name = re.sub("[^A-Za-z0-9]+", "", provider_name)
         return f"{self.prefix}{sanitized_name}".lower()
-
-    def send_notification(self, title: str, message: str, priority: int = 1):
-        """Sends a notification via Gotify if it's enabled."""
-        if self.gotify:
-            try:
-                self.logger.debug(f"Sending notification: '{title}' - '{message}'")
-                self.gotify.create_message(message, title=title, priority=priority)
-            except Exception as e:
-                self.logger.error(f"Failed to send Gotify notification: {e}")
 
     def send_discord_notification(self, message: str):
         """Sends a notification via Discord webhook, splitting the message smartly."""
@@ -286,10 +267,10 @@ class Elsewherr:
     def _process_single_item(self, item: Dict[str, Any], media_type: str, service_name: str, api_client: Any, tags_id_to_label: Dict, tags_label_to_id: Dict) -> bool:
         title = item["title"]
         get_providers_func = Movie().watch_providers if media_type == "movie" else TV().watch_providers
-        update_media_func = api_client.upd_movie if media_type == "movie" else api_client.upd_series
         for retry_attempt in range(MAX_RETRIES):
             try:
-                tmdb_id = item.get("tmdbId") if media_type == "movie" else (Find().find_by_tvdb_id(str(item.get("tvdbId"))).get("tv_results", [{}])[0].get("id"))
+                # Sonarr v4 supplies tmdbId directly; only fall back to the extra TMDB lookup if absent.
+                tmdb_id = item.get("tmdbId") or (None if media_type == "movie" else Find().find_by_tvdb_id(str(item.get("tvdbId"))).get("tv_results", [{}])[0].get("id"))
                 if not tmdb_id:
                     with self.changes_lock:
                         self.errors_log.append({'service': service_name, 'title': title, 'reason': 'TMDB ID not found.'})
@@ -307,12 +288,13 @@ class Elsewherr:
                 if current_tags_ids != new_tags_ids:
                     added_labels = {tags_id_to_label.get(t) for t in new_tags_ids - current_tags_ids if t}
                     removed_labels = {tags_id_to_label.get(t) for t in current_tags_ids - new_tags_ids if t}
-                    item["tags"] = list(new_tags_ids)
-                    with redirect_stdout(StringIO()):
-                        update_media_func(item)
-                    self._log_change(service_name, title, added_labels, removed_labels, success=True)
-                    change_summary = ". ".join(filter(None, [f"Removed: {', '.join(sorted(removed_labels))}" if removed_labels else "", f"Added: {', '.join(sorted(added_labels))}" if added_labels else ""]))
-                    self.send_notification(f"{service_name}: {title}", change_summary)
+                    # Deferred: applied in bulk by _apply_pending_changes once all lookups finish.
+                    with self.changes_lock:
+                        self.pending_changes.append({
+                            'id': item["id"], 'title': title,
+                            'add_ids': new_tags_ids - current_tags_ids, 'remove_ids': current_tags_ids - new_tags_ids,
+                            'added': added_labels, 'removed': removed_labels,
+                        })
                 else:
                     self._log_change(service_name, title, set(), set(), success=True)
                 return True
@@ -335,7 +317,42 @@ class Elsewherr:
         self._log_change(service_name, title, set(), set(), success=False)
         return False
 
-    def _process_service(self, service_name: str, api_client: Any, media_type: str):
+    def _apply_pending_changes(self, service_name: str, media_type: str, cfg: Dict[str, Any]):
+        """
+        Applies all queued tag changes via the *arr bulk editor endpoint
+        (PUT /api/v3/{movie|series}/editor): one call per tag per add/remove
+        instead of one full-object PUT per item.
+        """
+        pending, self.pending_changes = self.pending_changes, []
+        endpoint, ids_key = ("movie", "movieIds") if media_type == "movie" else ("series", "seriesIds")
+        url = f"{cfg['url'].rstrip('/')}/api/v3/{endpoint}/editor"
+        groups = defaultdict(list)  # (tag_id, "add"|"remove") -> [media ids]
+        for p in pending:
+            for t in p['add_ids']:
+                groups[(t, "add")].append(p['id'])
+            for t in p['remove_ids']:
+                groups[(t, "remove")].append(p['id'])
+        failed = set()
+        for (tag_id, mode), ids in groups.items():
+            for attempt in range(MAX_RETRIES):
+                try:
+                    requests.put(url, headers={"X-Api-Key": cfg["api_key"]}, timeout=SOCKET_TIMEOUT_SECONDS * 4,
+                                 json={ids_key: ids, "tags": [tag_id], "applyTags": mode}).raise_for_status()
+                    break
+                except RequestException as e:
+                    if attempt < MAX_RETRIES - 1:
+                        time.sleep(RETRY_DELAY_SECONDS)
+                    else:
+                        self.logger.error(f"Bulk tag {mode} failed for tag {tag_id}: {e}")
+                        failed.update(ids)
+        for p in pending:
+            if p['id'] in failed:
+                self.errors_log.append({'service': service_name, 'title': p['title'], 'reason': 'Bulk tag update failed.'})
+                self._log_change(service_name, p['title'], set(), set(), success=False)
+                continue
+            self._log_change(service_name, p['title'], p['added'], p['removed'], success=True)
+
+    def _process_service(self, service_name: str, api_client: Any, media_type: str, cfg: Dict[str, Any]):
         original_level = logging.getLogger().getEffectiveLevel()
         logging.getLogger().setLevel(logging.ERROR)
         try:
@@ -370,6 +387,7 @@ class Elsewherr:
                         bar_format='{l_bar}{bar} | {n_fmt}/{total_fmt}', position=0, leave=True) as pbar:
                         for future in as_completed(futures):
                             pbar.update(1)
+                self._apply_pending_changes(service_name, media_type, cfg)
             finally:
                 # Restore original handlers
                 root_logger.handlers = original_handlers
@@ -383,22 +401,19 @@ class Elsewherr:
         print("\n🎬 ELSEWHERR - Media Streaming Provider Tagger")
         print("=" * 60)
         summaries = []
-        if self.config.get("radarr", {}).get("enabled"):
-            radarr_config = self.config["radarr"]
-            try:
-                radarr_api = RadarrAPI(host_url=radarr_config["url"], api_key=radarr_config["api_key"])
-                if (count := self._process_service("Radarr", radarr_api, "movie")) is not None:
-                    summaries.append(f"{count} movies")
-            except Exception as e:
-                print(f"Failed to initialize Radarr API client: {e}")
-        if self.config.get("sonarr", {}).get("enabled"):
-            sonarr_config = self.config["sonarr"]
-            try:
-                sonarr_api = SonarrAPI(host_url=sonarr_config["url"], api_key=sonarr_config["api_key"])
-                if (count := self._process_service("Sonarr", sonarr_api, "series")) is not None:
-                    summaries.append(f"{count} series")
-            except Exception as e:
-                print(f"Failed to initialize Sonarr API client: {e}")
+        # Each of radarr/sonarr may be a single mapping or a list of them (e.g. HD + 4K).
+        for key, api_cls, media_type, noun in (("radarr", RadarrAPI, "movie", "movies"), ("sonarr", SonarrAPI, "series", "series")):
+            instances = self.config.get(key) or []
+            for cfg in [instances] if isinstance(instances, dict) else instances:
+                if not cfg.get("enabled"):
+                    continue
+                name = cfg.get("name", key.capitalize())
+                try:
+                    api = api_cls(host_url=cfg["url"], api_key=cfg["api_key"])
+                    if (count := self._process_service(name, api, media_type, cfg)) is not None:
+                        summaries.append(f"{count} {noun} ({name})")
+                except Exception as e:
+                    print(f"Failed to process {name}: {e}")
 
         time.sleep(0.1)  # Allow tqdm to finish cleaning up
 
@@ -422,7 +437,6 @@ class Elsewherr:
         if summaries:
             summary_message = f"Processed {' & '.join(summaries)} in {runtime}"
             print(f"✅ {summary_message}")
-            self.send_notification("Elsewherr Run Complete", summary_message)
         else:
             print(f"❌ No services were processed successfully. Runtime: {runtime}")
         print("🏁 Elsewherr has finished.\n")

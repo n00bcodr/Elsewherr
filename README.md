@@ -113,9 +113,6 @@ services:
 | **sonarr.api_key**| Your Sonarr API key. | `xxx` |
 | **discord.enabled**| Set to `true` to send a summary report to a Discord channel. | `true` |
 | **discord.webhook_url**| The webhook URL for your Discord channel. | `xxx` |
-| **gotify.enabled** | Set to `true` to enable Gotify notifications. | `false` |
-| **gotify.url** | The URL for your Gotify instance. | `http://localhost` |
-| **gotify.token** | Your Gotify application token. | `xxx` |
 | **providers** | A list of streaming providers you want to track. **Must match TMDb's naming exactly.**<br>Refer /res/providers.txt | `- Netflix` <br> `- Disney Plus` |
 | **prefix** | A unique prefix for the tags created by this script. This is crucial for cleanup. | `elsewherr-` |
 
