@@ -4,10 +4,17 @@ CONFIG_DIR="${CONFIG_DIR:-/usr/src/app/config}"
 
 run_once() {
   if [ -d "${CONFIG_DIR}" ] && ls "${CONFIG_DIR}"/*.y*ml >/dev/null 2>&1; then
+    MARKER=/usr/src/app/logs/.jellyfin_pending
+    rm -f "${MARKER}"
     for config in "${CONFIG_DIR}"/*.y*ml; do
       echo "=== Running elsewherr.py with config: ${config} ==="
-      /usr/local/bin/python /usr/src/app/elsewherr.py --config "${config}"
+      /usr/local/bin/python /usr/src/app/elsewherr.py --config "${config}" --defer-jellyfin
     done
+    # One Jellyfin sync for the whole cycle, using a config that had changes and Jellyfin enabled.
+    if [ -f "${MARKER}" ]; then
+      /usr/local/bin/python /usr/src/app/elsewherr.py --config "$(cat "${MARKER}")" --jellyfin-sync-only
+      rm -f "${MARKER}"
+    fi
   else
     /usr/local/bin/python /usr/src/app/elsewherr.py
   fi

@@ -27,6 +27,14 @@ sonarr:
     url: "http://localhost:8990"
     api_key: "YOUR_SONARR_4K_API_KEY"
 
+# Optional: after tags change, start Jellyfin Enhanced's "Sync Tags from *arr to Jellyfin" task.
+# Needs the Jellyfin Enhanced plugin with Arr Tags Sync enabled, and a Jellyfin API key
+# (Dashboard -> API Keys).
+jellyfin:
+  enabled: false
+  url: "http://localhost:8096"
+  api_key: "YOUR_JELLYFIN_API_KEY"
+
 discord:
   enabled: false
   webhook_url: ""

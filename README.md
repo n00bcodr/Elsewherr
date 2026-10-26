@@ -113,6 +113,9 @@ services:
 | **sonarr.api_key**| Your Sonarr API key. | `xxx` |
 | **discord.enabled**| Set to `true` to send a summary report to a Discord channel. | `true` |
 | **discord.webhook_url**| The webhook URL for your Discord channel. | `xxx` |
+| **jellyfin.enabled** | Set to `true` to start Jellyfin Enhanced's "Sync Tags from *arr to Jellyfin" task after tags change. Requires the plugin with Arr Tags Sync enabled. | `false` |
+| **jellyfin.url** | The full URL to your Jellyfin server. | `http://localhost:8096` |
+| **jellyfin.api_key** | A Jellyfin API key (Dashboard → API Keys). | `xxx` |
 | **providers** | A list of streaming providers you want to track. **Must match TMDb's naming exactly.**<br>Refer /res/providers.txt | `- Netflix` <br> `- Disney Plus` |
 | **prefix** | A unique prefix for the tags created by this script. This is crucial for cleanup. | `elsewherr-` |
 
@@ -120,6 +123,15 @@ services:
 >The script uses this **prefix** to identify and remove old tags before adding the new ones. This ensures that media removed from a streaming service will have it's tag correctly removed. **Do not use a generic prefix that might match other tags in your library.**
 
 ---
+
+### **Jellyfin Enhanced integration**
+
+[Jellyfin Enhanced](https://github.com/n00bcodr/Jellyfin-Enhanced) can copy Radarr/Sonarr tags onto Jellyfin items with its *Sync Tags from \*arr to Jellyfin* scheduled task. Enable the `jellyfin` section in your config and Elsewherr starts that task as soon as it has changed any tags, so the new provider tags show up in Jellyfin without waiting for the task's own schedule.
+
+- Enable **Arr Tags Sync** in the Jellyfin Enhanced plugin settings first, otherwise the task is hidden and can't be found.
+- Create the API key in Jellyfin under Dashboard → API Keys.
+- Nothing is triggered when no tags changed.
+- With several configs in the Docker `config/` folder, Elsewherr triggers **one** sync after the last config finishes, not one per config. Put the `jellyfin` section in at least one config; the sync uses a config that had tag changes.
 
 ### **Logging & Debugging**
 

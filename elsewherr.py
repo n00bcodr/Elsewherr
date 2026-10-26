@@ -46,6 +46,9 @@ MAX_WORKERS = 10
 # black-holed host (common inside Docker's virtual network) can hang forever.
 # This makes every socket in the process fail fast instead.
 SOCKET_TIMEOUT_SECONDS = 15
+# Key of Jellyfin Enhanced's ArrTagsSyncTask scheduled task.
+JELLYFIN_SYNC_TASK_KEY = "JellyfinEnhancedArrTagsSync"
+JELLYFIN_PENDING_MARKER = ".jellyfin_pending"
 
 
 class Elsewherr:
@@ -59,6 +62,7 @@ class Elsewherr:
         """
         self.base_dir = Path(__file__).resolve().parent
         self.config_file = args.config
+        self.defer_jellyfin = args.defer_jellyfin
         self.logger = self._setup_logging(args)
 
         self.config = self._load_config()
@@ -183,6 +187,28 @@ class Elsewherr:
                         requests.post(self.discord_webhook_url, json=payload).raise_for_status()
             except Exception as e:
                 self.logger.error(f"Failed to send Discord notification: {e}")
+
+    def _trigger_jellyfin_sync(self):
+        """
+        Starts Jellyfin Enhanced's "Sync Tags from *arr to Jellyfin" scheduled task
+        so freshly written Radarr/Sonarr tags reach Jellyfin without waiting for its own schedule.
+        """
+        cfg = self.config.get("jellyfin") or {}
+        if not cfg.get("enabled"):
+            return
+        base = cfg["url"].rstrip("/")
+        headers = {"Authorization": f'MediaBrowser Token="{cfg["api_key"]}"'}
+        try:
+            tasks = requests.get(f"{base}/ScheduledTasks", headers=headers, timeout=SOCKET_TIMEOUT_SECONDS)
+            tasks.raise_for_status()
+            task = next((t for t in tasks.json() if t.get("Key") == JELLYFIN_SYNC_TASK_KEY), None)
+            if not task:
+                self.logger.error("Jellyfin task 'Sync Tags from *arr to Jellyfin' not found. Is Jellyfin Enhanced installed and Arr Tags Sync enabled?")
+                return
+            requests.post(f"{base}/ScheduledTasks/Running/{task['Id']}", headers=headers, timeout=SOCKET_TIMEOUT_SECONDS).raise_for_status()
+            print("🔄 Triggered Jellyfin Enhanced tag sync.")
+        except Exception as e:
+            self.logger.error(f"Failed to trigger Jellyfin tag sync: {e}")
 
     def _log_change(self, service_name: str, title: str, added_labels: set, removed_labels: set, success: bool = True):
         """
@@ -426,6 +452,17 @@ class Elsewherr:
 
         time.sleep(0.1)  # Allow tqdm to finish cleaning up
 
+        if any("No changes" not in c['changes'] for c in self.changes_log):
+            if not (self.config.get("jellyfin") or {}).get("enabled"):
+                pass
+            elif self.defer_jellyfin:
+                # Multi-config run: leave a marker so run.sh triggers one sync after the last config.
+                marker = self.base_dir / "logs" / JELLYFIN_PENDING_MARKER
+                marker.parent.mkdir(exist_ok=True)
+                marker.write_text(self.config_file or "")
+            else:
+                self._trigger_jellyfin_sync()
+
         self._print_changes_summary()
         
         # Save detailed error log if there were any errors
@@ -456,9 +493,14 @@ def main():
     parser.add_argument("-c", "--config", type=str, default=None, help="Path to config file (default: config.yaml)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose (DEBUG level) logging.")
     parser.add_argument("-l", "--log-to-file", action="store_true", help="Enable logging to a file.")
+    parser.add_argument("--defer-jellyfin", action="store_true", help="Don't trigger the Jellyfin sync; leave a marker for run.sh to trigger it once.")
+    parser.add_argument("--jellyfin-sync-only", action="store_true", help="Only trigger the Jellyfin sync, then exit.")
     args = parser.parse_args()
     app = Elsewherr(args)
-    app.run()
+    if args.jellyfin_sync_only:
+        app._trigger_jellyfin_sync()
+    else:
+        app.run()
 
 if __name__ == "__main__":
     main()
