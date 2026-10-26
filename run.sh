@@ -23,7 +23,7 @@ if [ "${SCHEDULE}" = "None" ]; then
 else
   CRON_LOG=/var/log/cron.log
   touch "${CRON_LOG}"
-  echo "${SCHEDULE} CONFIG_DIR=${CONFIG_DIR} /usr/src/app/run.sh once >> ${CRON_LOG} 2>&1" | crontab -
+  echo "${SCHEDULE} CONFIG_DIR=${CONFIG_DIR} sh /usr/src/app/run.sh once >> ${CRON_LOG} 2>&1" | crontab -
   cron
   tail -f "${CRON_LOG}"
 fi
